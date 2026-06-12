@@ -59,10 +59,14 @@
 
         /* Continuous Color Sequence: Orange -> Off -> Yellow -> Off -> Orange */
         @keyframes callColorPattern {
-            0%, 20%, 100% { background-color: #ffa142; }  /* Orange */
-            35% { background-color: #000000; }        /* Off */
-            50%, 90% { background-color: #ffa142; }       /* Yellow */
-            90% { background-color: #000000; }        /* Off */
+    0% {
+      border-color: #FFA500; /* Orange */
+    }
+    50% {
+      border-color: #FFFF00; /* Yellow */
+    }
+    100% {
+      border-color: #FFA500; /* Orange */
         }
 
         body.attention-call-active #call-overlay-bar {
