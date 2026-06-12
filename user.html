@@ -136,7 +136,7 @@
             ).subscribe();
 
             // Safety Engine Fallback Loop - updates page manually every 1000ms
-            setInterval(syncDataFromDatabase, 1000);
+            setInterval(syncDataFromDatabase, 10);
         }
 
         function updateLightUI(cueState, isCalling) {
