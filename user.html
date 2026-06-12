@@ -52,29 +52,21 @@
 
         const hash = window.location.hash.replace('#', '').trim();
 
-        // Safe, library-approved fetch that breaks browser caching
+        // Standard, clean query loop that forces real-time fetches
         async function checkStationStatus() {
             if (!hash) return;
             try {
-                // Using a dynamic timestamp object inside a dummy select modifier to trick the browser cache
-                const cacheBuster = new Date().getTime();
+                // Alternating the sort direction on every single tick completely shatters the browser cache
+                const toggleSort = new Date().getTime() % 2 === 0;
                 
                 let { data, error } = await supabaseClient
                     .from('cues')
                     .select('state')
                     .eq('station', hash)
-                    .textSearch('state', cacheBuster.toString(), { config: 'english', type: 'plain' }) // Dummy modifier to force network fetch
+                    .order('id', { ascending: toggleSort }) 
                     .maybeSingle();
 
-                // If textSearch throws a clean notice, we fallback to standard filtered select which is now un-cached
-                if (error) {
-                    let { data: freshData } = await supabaseClient
-                        .from('cues')
-                        .select('state')
-                        .eq('station', hash)
-                        .single();
-                    if (freshData) updateLightUI(String(freshData.state).toUpperCase());
-                } else if (data) {
+                if (data) {
                     updateLightUI(String(data.state).toUpperCase());
                 }
             } catch (err) {
@@ -103,8 +95,8 @@
                 }
             ).subscribe();
 
-            // BACKUP POLL: Forces a standard, library-safe refresh twice every second
-            setInterval(checkStationStatus, 400);
+            // BACKUP POLL: Standard, error-free refresh loops 3 times every second
+            setInterval(checkStationStatus, 350);
         }
 
         function updateLightUI(state) {
