@@ -34,12 +34,12 @@
             z-index: 10;
         }
         
-        /* Standard Standby Red Flash */
+        /* Standby state flash indicator */
         body.standby-flash {
             background-color: #ff0000 !important;
         }
 
-        /* High-Priority Orange Attention Call Flash */
+        /* High-priority attention call loop animation */
         @keyframes emergencyCallFlash {
             0%, 100% { background-color: #000000; }
             50% { background-color: #ff9900; }
@@ -63,7 +63,10 @@
 
         const hash = window.location.hash.replace('#', '').trim().toUpperCase();
 
-        // Fetches the current state of both the cue lights and the call status
+        // Local state track memory to preserve values between individual column payloads
+        let currentCueState = "OFF";
+        let currentCallStatus = false;
+
         async function fetchInitialStatus() {
             if (!hash) return;
             try {
@@ -74,7 +77,9 @@
                     .maybeSingle();
 
                 if (data) {
-                    updateLightUI(String(data.state).toUpperCase(), data.is_calling);
+                    currentCueState = String(data.state).toUpperCase();
+                    currentCallStatus = Boolean(data.is_calling);
+                    applyUIRender();
                 }
             } catch (err) {
                 console.error("Initial fetch failed:", err);
@@ -91,28 +96,36 @@
 
             await fetchInitialStatus();
 
-            // Realtime listener watching for both state and call updates
+            // Realtime data pipeline subscription
             supabaseClient.channel('crew-global-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
                     if (payload.new && payload.new.station.toUpperCase() === hash) {
-                        updateLightUI(String(payload.new.state).toUpperCase(), payload.new.is_calling);
+                        // Ensure we parse whatever columns Supabase sends us without losing data
+                        if (payload.new.state !== undefined) {
+                            currentCueState = String(payload.new.state).toUpperCase();
+                        }
+                        if (payload.new.is_calling !== undefined) {
+                            currentCallStatus = Boolean(payload.new.is_calling);
+                        }
+                        applyUIRender();
                     } 
                 }
             ).subscribe();
         }
 
-        function updateLightUI(cueState, isCalling) {
-            // Priority 1: If Master Console is signaling a CALL, flash orange regardless of cue state
-            if (isCalling) {
+        function applyUIRender() {
+            // Priority 1: Orange Master Call Intercept
+            if (currentCallStatus === true) {
+                document.body.classList.remove('standby-flash');
                 document.body.classList.add('attention-call-active');
                 return;
             }
             
-            // Priority 2: If no call is active, drop back to regular cue light tracking
+            // Priority 2: Clear Out Call, Process Standby Layouts
             document.body.classList.remove('attention-call-active');
 
-            if (cueState === 'STANDBY') {
+            if (currentCueState === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
                 document.body.classList.remove('standby-flash');
