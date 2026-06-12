@@ -39,7 +39,7 @@
 
         /* --- CALL ACTIVE STATE: DROPS BASE PAGE TO 50% OPACITY --- */
         body.attention-call-active {
-            opacity: 0.6;
+            opacity: 0.5;
         }
 
         /* --- 20% HEIGHT ORANGE/YELLOW COLOR CYCLE ALERT BAR --- */
@@ -59,25 +59,21 @@
 
         /* Continuous Color Sequence: Orange -> Off -> Yellow -> Off -> Orange */
         @keyframes callColorPattern {
-    0% {
-      border-color: #FFA500; /* Orange */
-    }
-    50% {
-      border-color: #FFFF00; /* Yellow */
-    }
-    100% {
-      border-color: #FFA500; /* Orange */
+            0%, 20%, 100% { background-color: #ff9900; }  /* Orange */
+            35% { background-color: transparent; }        /* Off */
+            55%, 75% { background-color: #ffcc00; }       /* Yellow */
+            90% { background-color: transparent; }        /* Off */
         }
 
         body.attention-call-active #call-overlay-bar {
             display: flex;
-            animation: callColorPattern 1.2s infinite;
+            animation: callColorPattern 1.4s infinite;
         }
 
         #call-overlay-text {
-            color: #ffffff; /* Solid Black Text Specification */
+            color: #ffffff; /* Solid White Text Specification */
             font-size: calc(2.2vw + 1.2rem);
-            font-weight: 900;
+            font-weight: 1000;
             text-transform: uppercase;
             letter-spacing: 3px;
             text-align: center;
@@ -140,7 +136,7 @@
             ).subscribe();
 
             // Safety Engine Fallback Loop - updates page manually every 1000ms
-            setInterval(syncDataFromDatabase, 50);
+            setInterval(syncDataFromDatabase, 1000);
         }
 
         function updateLightUI(cueState, isCalling) {
