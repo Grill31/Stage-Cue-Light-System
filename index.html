@@ -6,139 +6,60 @@
     <title>SM Master Console</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --bg-color: #1a1a1a;
-            --box-bg: #111;
-            --red-on: #ff2a2a;
-            --red-off: #3d0a0a;
-            --green-on: #2acc2a;
-            --green-off: #0a3d0a;
-        }
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-color);
-            color: #fff;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        :root { --bg-color: #1a1a1a; --box-bg: #111; --red-on: #ff2a2a; --red-off: #3d0a0a; --green-on: #2acc2a; --green-off: #0a3d0a; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-color); color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         h1 { margin-bottom: 20px; font-weight: 400; letter-spacing: 1px; }
-        .console-rack {
-            background-color: #222;
-            border: 4px double #444;
-            padding: 12px;
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            max-width: 95vw;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-        }
-        .channel-strip {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            background: var(--box-bg);
-            padding: 4px;
-            border: 1px solid #333;
-        }
-        .cue-btn {
-            width: 65px;
-            height: 65px;
-            border: 3px solid #222;
-            cursor: pointer;
-            outline: none;
-            box-sizing: border-box;
-        }
-        .btn-standby {
-            background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%);
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.8);
-        }
-        .btn-standby.active {
-            background: radial-gradient(circle, #ff6b6b 0%, var(--red-on) 100%);
-            box-shadow: 0 0 15px var(--red-on);
-            border-color: #fff;
-        }
-        .btn-go {
-            background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%);
-            box-shadow: inset 0 0 8px rgba(0,0,0,0.8);
-        }
-        .btn-go.active {
-            background: radial-gradient(circle, #6bff6b 0%, var(--green-on) 100%);
-            box-shadow: 0 0 15px var(--green-on);
-            border-color: #fff;
-        }
-        .label-window {
-            width: 65px;
-            background-color: #fff;
-            color: #000;
-            font-weight: bold;
-            font-size: 0.9rem;
-            padding: 4px 0;
-            text-align: center;
-            text-transform: uppercase;
-            border: 2px solid #000;
-            box-sizing: border-box;
-        }
+        .console-rack { background-color: #222; border: 4px double #444; padding: 12px; display: flex; gap: 8px; overflow-x: auto; max-width: 95vw; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
+        .channel-strip { display: flex; flex-direction: column; align-items: center; gap: 6px; background: var(--box-bg); padding: 4px; border: 1px solid #333; }
+        .cue-btn { width: 65px; height: 65px; border: 3px solid #222; cursor: pointer; outline: none; box-sizing: border-box; }
+        .btn-standby { background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%); box-shadow: inset 0 0 8px rgba(0,0,0,0.8); }
+        .btn-standby.active { background: radial-gradient(circle, #ff6b6b 0%, var(--red-on) 100%); box-shadow: 0 0 15px var(--red-on); border-color: #fff; }
+        .btn-go { background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%); box-shadow: inset 0 0 8px rgba(0,0,0,0.8); }
+        .btn-go.active { background: radial-gradient(circle, #6bff6b 0%, var(--green-on) 100%); box-shadow: 0 0 15px var(--green-on); border-color: #fff; }
+        .label-window { width: 65px; background-color: #fff; color: #000; font-weight: bold; font-size: 0.9rem; padding: 4px 0; text-align: center; text-transform: uppercase; border: 2px solid #000; box-sizing: border-box; }
     </style>
 </head>
 <body>
-
     <h1>Stage Manager Master Console</h1>
     <div class="console-rack" id="master-rack"></div>
-
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
         const SUPABASE_KEY = "sb_publishable_ztUNSuNBHDLkdmI7MQlxxA_QEfkXMVF"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
         const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
 
         async function buildConsole() {
             const rack = document.getElementById('master-rack');
             rack.innerHTML = '';
-
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             const stateMap = {};
             if (currentCues) {
-                // Safeguard: Convert database text to lowercase safely
-                currentCues.forEach(row => stateMap[row.station] = String(row.state).toLowerCase());
+                currentCues.forEach(row => stateMap[row.station] = String(row.state).toUpperCase());
             }
-
             stationList.forEach(st => {
-                const currentStatus = stateMap[st] || 'off';
+                const currentStatus = stateMap[st] || 'OFF';
                 const strip = document.createElement('div');
                 strip.className = 'channel-strip';
                 strip.innerHTML = `
-                    <button class="cue-btn btn-standby ${currentStatus === 'standby' ? 'active' : ''}" id="std-${st}" onclick="toggleSignal('${st}', 'standby')"></button>
+                    <button class="cue-btn btn-standby ${currentStatus === 'STANDBY' ? 'active' : ''}" id="std-${st}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
                     <div class="label-window">${st}</div>
-                    <button class="cue-btn btn-go ${currentStatus === 'go' ? 'active' : ''}" id="go-${st}" onclick="toggleSignal('${st}', 'go')"></button>
+                    <button class="cue-btn btn-go ${currentStatus === 'GO' ? 'active' : ''}" id="go-${st}" onclick="toggleSignal('${st}', 'GO')"></button>
                 `;
                 rack.appendChild(strip);
             });
-
             supabaseClient.channel('sm-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
-                payload => { 
-                    if(payload.new) {
-                        updateButtonUI(payload.new.station, String(payload.new.state).toLowerCase()); 
-                    }
-                }
+                payload => { if(payload.new) updateButtonUI(payload.new.station, payload.new.state); }
             ).subscribe();
         }
 
         async function toggleSignal(station, targetState) {
             const standbyBtn = document.getElementById(`std-${station}`);
             const goBtn = document.getElementById(`go-${station}`);
-            let isCurrentlyActive = (targetState === 'standby' && standbyBtn.classList.contains('active')) || 
-                                    (targetState === 'go' && goBtn.classList.contains('active'));
-            
-            // Send back uppercase to keep your database uniform
-            const newState = isCurrentlyActive ? 'OFF' : targetState.toUpperCase();
-            updateButtonUI(station, newState.toLowerCase());
-            
+            let isCurrentlyActive = (targetState === 'STANDBY' && standbyBtn.classList.contains('active')) || 
+                                    (targetState === 'GO' && goBtn.classList.contains('active'));
+            const newState = isCurrentlyActive ? 'OFF' : targetState;
+            updateButtonUI(station, newState);
             await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
         }
 
@@ -146,14 +67,10 @@
             const stdBtn = document.getElementById(`std-${station}`);
             const goBtn = document.getElementById(`go-${station}`);
             if (!stdBtn || !goBtn) return;
-
-            stdBtn.classList.remove('active');
-            goBtn.classList.remove('active');
-
-            if (state === 'standby') stdBtn.classList.add('active');
-            if (state === 'go') goBtn.classList.add('active');
+            stdBtn.classList.remove('active'); goBtn.classList.remove('active');
+            if (state === 'STANDBY') stdBtn.classList.add('active');
+            if (state === 'GO') goBtn.classList.add('active');
         }
-
         window.onload = buildConsole;
     </script>
 </body>
