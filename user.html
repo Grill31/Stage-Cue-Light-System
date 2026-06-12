@@ -20,7 +20,6 @@
             align-items: flex-start;
             transition: background-color 0.05s ease;
             user-select: none;
-            -webkit-user-select: none;
             overflow: hidden;
         }
         #position-tag {
@@ -29,17 +28,11 @@
             margin: 30px 0 0 30px;
             text-transform: uppercase;
             letter-spacing: 2px;
-            color: #ffffff;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             z-index: 10;
         }
         
-        /* Standby state flash indicator */
-        body.standby-flash {
-            background-color: #ff0000 !important;
-        }
+        body.standby-flash { background-color: #ff0000 !important; }
 
-        /* High-priority attention call loop animation */
         @keyframes emergencyCallFlash {
             0%, 100% { background-color: #000000; }
             50% { background-color: #ff9900; }
@@ -56,33 +49,15 @@
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
-        
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
-            auth: { persistSession: false }
-        });
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const hash = window.location.hash.replace('#', '').trim().toUpperCase();
 
-        // Local state track memory to preserve values between individual column payloads
-        let currentCueState = "OFF";
-        let currentCallStatus = false;
-
         async function fetchInitialStatus() {
             if (!hash) return;
-            try {
-                let { data } = await supabaseClient
-                    .from('cues')
-                    .select('state, is_calling')
-                    .eq('station', hash)
-                    .maybeSingle();
-
-                if (data) {
-                    currentCueState = String(data.state).toUpperCase();
-                    currentCallStatus = Boolean(data.is_calling);
-                    applyUIRender();
-                }
-            } catch (err) {
-                console.error("Initial fetch failed:", err);
+            let { data } = await supabaseClient.from('cues').select('state, is_calling').eq('station', hash).maybeSingle();
+            if (data) {
+                updateLightUI(String(data.state).toUpperCase(), data.is_calling);
             }
         }
 
@@ -96,36 +71,28 @@
 
             await fetchInitialStatus();
 
-            // Realtime data pipeline subscription
+            // Realtime listening matrix listening for ALL column updates
             supabaseClient.channel('crew-global-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
                     if (payload.new && payload.new.station.toUpperCase() === hash) {
-                        // Ensure we parse whatever columns Supabase sends us without losing data
-                        if (payload.new.state !== undefined) {
-                            currentCueState = String(payload.new.state).toUpperCase();
-                        }
-                        if (payload.new.is_calling !== undefined) {
-                            currentCallStatus = Boolean(payload.new.is_calling);
-                        }
-                        applyUIRender();
+                        updateLightUI(String(payload.new.state).toUpperCase(), payload.new.is_calling);
                     } 
                 }
             ).subscribe();
         }
 
-        function applyUIRender() {
-            // Priority 1: Orange Master Call Intercept
-            if (currentCallStatus === true) {
-                document.body.classList.remove('standby-flash');
+        function updateLightUI(cueState, isCalling) {
+            // Priority 1: Orange Master Call Loop
+            if (isCalling === true || isCalling === 'true') {
                 document.body.classList.add('attention-call-active');
                 return;
             }
             
-            // Priority 2: Clear Out Call, Process Standby Layouts
             document.body.classList.remove('attention-call-active');
 
-            if (currentCueState === 'STANDBY') {
+            // Priority 2: Standard Cue State Tracking
+            if (cueState === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
                 document.body.classList.remove('standby-flash');
