@@ -14,6 +14,7 @@
             --green-on: #2acc2a;
             --green-off: #0a4d0a;
             --panel-border: #3a3a3a;
+            --orange-call: #ff9900;
         }
         
         html, body {
@@ -35,7 +36,7 @@
             height: 15vh;
             min-height: 80px;
             display: grid;
-            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-columns: 1.2fr 1.6fr 1.2fr;
             align-items: center;
             background-color: #181818;
             border-bottom: 5px ridge var(--panel-border);
@@ -46,16 +47,15 @@
         .time-module {
             font-family: monospace;
             font-weight: bold;
-            font-size: calc(1.5vh + 1rem);
-            color: #00ffcc;
-            text-shadow: 0 0 10px rgba(0,255,204,0.4);
+            font-size: calc(1.4vh + 1.1rem);
+            color: #ffffff;
             display: flex;
             align-items: center;
         }
 
         .stopwatch-container {
             justify-content: flex-end;
-            gap: 12px;
+            gap: 10px;
         }
 
         .sw-btn {
@@ -70,7 +70,6 @@
             text-transform: uppercase;
         }
 
-        /* Macro Controls layout */
         .macro-container {
             display: flex;
             justify-content: center;
@@ -91,13 +90,8 @@
         }
         .macro-btn:active { transform: scale(0.96); }
         
-        .btn-master-go {
-            background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%);
-        }
-        .btn-master-reset {
-            background: linear-gradient(180deg, #444 0%, #222 100%);
-            border-color: #555;
-        }
+        .btn-master-go { background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%); }
+        .btn-master-reset { background: linear-gradient(180deg, #444 0%, #222 100%); border-color: #555; }
 
         /* --- CUE LIGHT DECK (85% Viewport Height) --- */
         .console-rack {
@@ -116,28 +110,72 @@
             justify-content: space-between;
             align-items: center;
             background: var(--box-bg);
-            padding: 2.5vh 10px;
+            padding: 2vh 8px;
             border: 2px solid #2d2d2d;
             border-radius: 6px;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
             box-sizing: border-box;
-            position: relative;
+            transition: background-color 0.2s ease;
         }
 
-        /* Pushbuttons layout */
+        /* --- CALL SYSTEM --- */
+        .call-dash-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+            box-sizing: border-box;
+        }
+
+        .action-call-btn {
+            background-color: var(--orange-call);
+            color: #000;
+            border: 2px solid #111;
+            border-radius: 4px;
+            font-weight: 900;
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .action-cancel-btn {
+            background-color: #000000;
+            color: #444;
+            border: 2px solid #222;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 0.7rem;
+            padding: 4px 6px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .action-cancel-btn.active-kill {
+            color: #fff;
+            border-color: #ff3333;
+        }
+
+        @keyframes callFlashLoop {
+            0%, 100% { background-color: var(--box-bg); }
+            50% { background-color: #5d3a00; }
+        }
+        .channel-strip.flashing-call-active {
+            animation: callFlashLoop 0.5s infinite !important;
+        }
+
+        /* --- CONTROL BUTTONS --- */
         .cue-btn {
-            width: 85%;
+            width: 82%;
             aspect-ratio: 1 / 1; 
-            max-width: 155px;
+            max-width: 140px;
             border: 5px solid #111;
             border-radius: 50%;
             cursor: pointer;
             outline: none;
             box-sizing: border-box;
-            transition: all 0.05s ease;
             position: relative;
         }
-        /* Tiny sub-labels showing the hotkey bound to that control target */
         .cue-btn::after {
             content: attr(data-key);
             position: absolute;
@@ -150,33 +188,19 @@
             font-family: monospace;
         }
 
-        .btn-standby {
-            background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%);
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
-        }
-        .btn-standby.active {
-            background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%);
-            box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff;
-            border-color: #fff;
-        }
+        .btn-standby { background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
+        .btn-standby.active { background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%); box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff; }
 
-        .btn-go {
-            background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%);
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
-        }
-        .btn-go.active {
-            background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%);
-            box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff;
-            border-color: #fff;
-        }
+        .btn-go { background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
+        .btn-go.active { background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%); box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff; }
 
         .label-window {
             width: 95%;
             background-color: #f8f9fa;
             color: #000;
             font-weight: 900;
-            font-size: calc(1.3vw + 1rem); 
-            padding: 10px 0;
+            font-size: calc(1.2vw + 1rem); 
+            padding: 8px 0;
             text-align: center;
             text-transform: uppercase;
             border: 4px solid #000;
@@ -190,7 +214,7 @@
 <body>
 
     <div class="top-utility-bar">
-        <div class="time-module" id="wall-clock">00:00:00 AM</div>
+        <div class="time-module" id="wall-clock">00:00:00</div>
         
         <div class="macro-container">
             <button class="macro-btn btn-master-go" onclick="triggerTargetedMasterGo()">Master GO (\)</button>
@@ -198,7 +222,7 @@
         </div>
         
         <div class="time-module stopwatch-container">
-            <span id="sw-display">00:00.0</span>
+            <span id="sw-display">00:00:00:000</span>
             <button class="sw-btn" id="sw-toggle" onclick="toggleStopwatch()">Start</button>
             <button class="sw-btn" onclick="resetStopwatch()">Reset</button>
         </div>
@@ -211,42 +235,32 @@
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
+        const stationList = ["LX", "SQ", "SL", "SR", "AUTO", "RAIL", "MD"];
         
-        // Explicit Hardware Mapping Table
         const hotkeyMaps = {
-            'q': { station: 'LX', action: 'STANDBY' },
-            'w': { station: 'SQ', action: 'STANDBY' },
-            'e': { station: 'SL', action: 'STANDBY' },
-            'r': { station: 'SR', action: 'STANDBY' },
-            't': { station: 'AUTO', action: 'STANDBY' }, 
-            'y': { station: 'RAIL', action: 'STANDBY' },
-            'u': { station: 'MD', action: 'STANDBY' },
-            'a': { station: 'LX', action: 'GO' },
-            's': { station: 'SQ', action: 'GO' },
-            'd': { station: 'SL', action: 'GO' },
-            'f': { station: 'SR', action: 'GO' },
-            'g': { station: 'AUTO', action: 'GO' },
-            'h': { station: 'RAIL', action: 'GO' },
-            'j': { station: 'MD', action: 'GO' }
+            'q': { station: 'LX', action: 'STANDBY' }, 'w': { station: 'SQ', action: 'STANDBY' },
+            'e': { station: 'SL', action: 'STANDBY' }, 'r': { station: 'SR', action: 'STANDBY' },
+            't': { station: 'AUTO', action: 'STANDBY' }, 'y': { station: 'RAIL', action: 'STANDBY' }, 'u': { station: 'MD', action: 'STANDBY' },
+            'a': { station: 'LX', action: 'GO' }, 's': { station: 'SQ', action: 'GO' },
+            'd': { station: 'SL', action: 'GO' }, 'f': { station: 'SR', action: 'GO' },
+            'g': { station: 'AUTO', action: 'GO' }, 'h': { station: 'RAIL', action: 'GO' }, 'j': { station: 'MD', action: 'GO' }
         };
 
         let localStateRegistry = {};
+        let activeCallTimers = {};
 
-        // --- WALL CLOCK SUBSYSTEM ---
+        // --- WALL CLOCK ---
         function updateWallClock() {
             const now = new Date();
-            let hours = now.getHours();
+            const hours = String(now.getHours()).padStart(2, '0');
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            document.getElementById('wall-clock').innerText = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+            document.getElementById('wall-clock').innerText = `${hours}:${minutes}:${seconds}`;
         }
         setInterval(updateWallClock, 1000);
         updateWallClock();
 
-        // --- STOPWATCH SUBSYSTEM ---
+        // --- STOPWATCH ---
         let swInterval = null;
         let swElapsedTime = 0;
 
@@ -261,7 +275,7 @@
                 swInterval = setInterval(() => {
                     swElapsedTime = Date.now() - startTime;
                     renderStopwatchUI();
-                }, 100);
+                }, 10);
                 btn.innerText = "Stop";
             }
         }
@@ -275,20 +289,25 @@
         }
 
         function renderStopwatchUI() {
-            const totalSeconds = Math.floor(swElapsedTime / 1000);
-            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-            const seconds = String(totalSeconds % 60).padStart(2, '0');
-            const tenths = Math.floor((swElapsedTime % 1000) / 100);
-            document.getElementById('sw-display').innerText = `${minutes}:${seconds}.${tenths}`;
+            let tempTime = swElapsedTime;
+            const hours = Math.floor(tempTime / 3600000);
+            tempTime %= 3600000;
+            const minutes = Math.floor(tempTime / 60000);
+            tempTime %= 60000;
+            const seconds = Math.floor(tempTime / 1000);
+            const milliseconds = tempTime % 1000;
+            document.getElementById('sw-display').innerText = 
+                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
         }
 
-        // --- ENGINE DATA SYNC OPERATIONS ---
+        // --- DATABASE OPERATIONS ---
         async function syncDataFromDatabase() {
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             if (currentCues) {
                 currentCues.forEach(row => {
                     localStateRegistry[row.station] = String(row.state).toUpperCase();
                     updateButtonUI(row.station, localStateRegistry[row.station]);
+                    updateCallUI(row.station, row.is_calling);
                 });
             }
         }
@@ -297,7 +316,6 @@
             const rack = document.getElementById('master-rack');
             rack.innerHTML = '';
 
-            // Map standard reverse-lookup letters for keyboard indicators on the GUI
             const keyIndicators = {
                 'LX': {std: 'Q', go: 'A'}, 'SQ': {std: 'W', go: 'S'}, 'SL': {std: 'E', go: 'D'},
                 'SR': {std: 'R', go: 'F'}, 'AUTO': {std: 'T', go: 'G'}, 'RAIL': {std: 'Y', go: 'H'}, 'MD': {std: 'U', go: 'J'}
@@ -307,7 +325,12 @@
                 localStateRegistry[st] = 'OFF';
                 const strip = document.createElement('div');
                 strip.className = 'channel-strip';
+                strip.id = `strip-${st}`;
                 strip.innerHTML = `
+                    <div class="call-dash-header">
+                        <button class="action-call-btn" onclick="fireCallSequence('${st}')">Call</button>
+                        <button class="action-cancel-btn" id="cnc-${st}" onclick="killCallSequence('${st}')">Cancel</button>
+                    </div>
                     <button class="cue-btn btn-standby" id="std-${st}" data-key="${keyIndicators[st].std}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
                     <div class="label-window">${st}</div>
                     <button class="cue-btn btn-go" id="go-${st}" data-key="${keyIndicators[st].go}" onclick="toggleSignal('${st}', 'GO')"></button>
@@ -323,13 +346,56 @@
                     if(payload.new) {
                         localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
                         updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
+                        updateCallUI(payload.new.station, payload.new.is_calling);
                     }
                 }
             ).subscribe();
-
-            setInterval(syncDataFromDatabase, 1000);
         }
 
+        // --- CALL SYSTEM DATABASE TRIGGERS ---
+        async function fireCallSequence(station) {
+            if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
+
+            // 1. Force the database update first
+            await supabaseClient.from('cues').update({ is_calling: true }).eq('station', station);
+            
+            // 2. Light up the console interface locally
+            updateCallUI(station, true);
+
+            // 3. Set the 8-second safety drop window
+            activeCallTimers[station] = setTimeout(() => {
+                killCallSequence(station);
+            }, 8000);
+        }
+
+        async function killCallSequence(station) {
+            if (activeCallTimers[station]) {
+                clearTimeout(activeCallTimers[station]);
+                delete activeCallTimers[station];
+            }
+            
+            // 1. Clear out the database flag first
+            await supabaseClient.from('cues').update({ is_calling: false }).eq('station', station);
+            
+            // 2. Drop the local console UI styles back to dark
+            updateCallUI(station, false);
+        }
+
+        function updateCallUI(station, isCalling) {
+            const strip = document.getElementById(`strip-${station}`);
+            const cancelBtn = document.getElementById(`cnc-${station}`);
+            if (!strip || !cancelBtn) return;
+
+            if (isCalling) {
+                strip.classList.add('flashing-call-active');
+                cancelBtn.classList.add('active-kill');
+            } else {
+                strip.classList.remove('flashing-call-active');
+                cancelBtn.classList.remove('active-kill');
+            }
+        }
+
+        // --- CUE SIGNAL CONTROL SWITCHES ---
         async function toggleSignal(station, targetState) {
             const current = localStateRegistry[station] || 'OFF';
             const newState = (current === targetState) ? 'OFF' : targetState;
@@ -340,7 +406,6 @@
             await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
         }
 
-        // TARGETED MASTER GO: Scans the board, captures ONLY active standby rows, flips them to GO
         async function triggerTargetedMasterGo() {
             const updates = [];
             stationList.forEach(st => {
@@ -350,18 +415,16 @@
                     updates.push(supabaseClient.from('cues').update({ state: 'GO' }).eq('station', st));
                 }
             });
-            if (updates.length > 0) {
-                await Promise.all(updates);
-            }
+            if (updates.length > 0) await Promise.all(updates);
         }
 
-        // GLOBAL PANEL RESET: Wipes all tracking signals down to deep OFF baselines instantly
         async function triggerGlobalReset() {
             const updates = [];
             stationList.forEach(st => {
                 localStateRegistry[st] = 'OFF';
                 updateButtonUI(st, 'OFF');
-                updates.push(supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', st));
+                updateCallUI(st, false);
+                updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
             });
             await Promise.all(updates);
         }
@@ -381,20 +444,9 @@
         // --- KEYBOARD CAPTURE INTERCEPT ENGINE ---
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
-            
-            // Intercept Master Actions
-            if (key === '\\') {
-                e.preventDefault();
-                triggerTargetedMasterGo();
-                return;
-            }
-            if (key === '1') {
-                e.preventDefault();
-                triggerGlobalReset();
-                return;
-            }
+            if (key === '\\') { e.preventDefault(); triggerTargetedMasterGo(); return; }
+            if (key === '1') { e.preventDefault(); triggerGlobalReset(); return; }
 
-            // Intercept Channel Strip Hotkeys
             if (hotkeyMaps[key]) {
                 e.preventDefault();
                 const target = hotkeyMaps[key];
