@@ -31,7 +31,7 @@
             user-select: none;
         }
 
-        /* --- UPPER RACK (15% Height) --- */
+        /* --- UPPER RACK (15% Viewport Height) --- */
         .top-utility-bar {
             height: 15vh;
             min-height: 80px;
@@ -93,7 +93,7 @@
         .btn-master-go { background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%); }
         .btn-master-reset { background: linear-gradient(180deg, #444 0%, #222 100%); border-color: #555; }
 
-        /* --- CUE LIGHT DECK (85% Height) --- */
+        /* --- CUE LIGHT DECK (85% Viewport Height) --- */
         .console-rack {
             height: 85vh;
             display: grid;
@@ -115,8 +115,10 @@
             border-radius: 6px;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
             box-sizing: border-box;
+            transition: background-color 0.2s ease;
         }
 
+        /* --- CALL SYSTEM --- */
         .call-dash-header {
             width: 100%;
             display: flex;
@@ -156,12 +158,13 @@
 
         @keyframes callFlashLoop {
             0%, 100% { background-color: var(--box-bg); }
-            50% { background-color: #5d3a00; border-color: var(--orange-call); }
+            50% { background-color: #5d3a00; }
         }
         .channel-strip.flashing-call-active {
-            animation: callFlashLoop 0.5s infinite;
+            animation: callFlashLoop 0.5s infinite !important;
         }
 
+        /* --- CONTROL BUTTONS --- */
         .cue-btn {
             width: 82%;
             aspect-ratio: 1 / 1; 
@@ -277,7 +280,7 @@
             }
         }
 
-        var resetStopwatch = function() {
+        function resetStopwatch() {
             clearInterval(swInterval);
             swInterval = null;
             swElapsedTime = 0;
@@ -293,19 +296,18 @@
             tempTime %= 60000;
             const seconds = Math.floor(tempTime / 1000);
             const milliseconds = tempTime % 1000;
-
             document.getElementById('sw-display').innerText = 
                 `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
         }
 
-        // --- DATA OPERATIONS ---
+        // --- DATABASE OPERATIONS ---
         async function syncDataFromDatabase() {
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             if (currentCues) {
                 currentCues.forEach(row => {
                     localStateRegistry[row.station] = String(row.state).toUpperCase();
                     updateButtonUI(row.station, localStateRegistry[row.station]);
-                    updateCallConsoleUI(row.station, Boolean(row.is_calling));
+                    updateCallUI(row.station, row.is_calling);
                 });
             }
         }
@@ -342,27 +344,25 @@
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
                     if(payload.new) {
-                        if (payload.new.state !== undefined) {
-                            localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
-                            updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
-                        }
-                        if (payload.new.is_calling !== undefined) {
-                            updateCallConsoleUI(payload.new.station, Boolean(payload.new.is_calling));
-                        }
+                        localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
+                        updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
+                        updateCallUI(payload.new.station, payload.new.is_calling);
                     }
                 }
             ).subscribe();
         }
 
-        // --- CONSOLE CALL UTILITIES ---
+        // --- CALL SYSTEM DATABASE TRIGGERS ---
         async function fireCallSequence(station) {
-            if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
-
-            updateCallConsoleUI(station, true);
+            updateCallUI(station, true);
+            
+            // Write directly to the DB column
             await supabaseClient.from('cues').update({ is_calling: true }).eq('station', station);
 
-            activeCallTimers[station] = setTimeout(async () => {
-                await killCallSequence(station);
+            if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
+            
+            activeCallTimers[station] = setTimeout(() => {
+                killCallSequence(station);
             }, 8000);
         }
 
@@ -371,11 +371,14 @@
                 clearTimeout(activeCallTimers[station]);
                 delete activeCallTimers[station];
             }
-            updateCallConsoleUI(station, false);
+            
+            updateCallUI(station, false);
+            
+            // Clear the DB column
             await supabaseClient.from('cues').update({ is_calling: false }).eq('station', station);
         }
 
-        function updateCallConsoleUI(station, isCalling) {
+        function updateCallUI(station, isCalling) {
             const strip = document.getElementById(`strip-${station}`);
             const cancelBtn = document.getElementById(`cnc-${station}`);
             if (!strip || !cancelBtn) return;
@@ -389,7 +392,7 @@
             }
         }
 
-        // --- BUTTON HANDLING ---
+        // --- CUE SIGNAL CONTROL SWITCHES ---
         async function toggleSignal(station, targetState) {
             const current = localStateRegistry[station] || 'OFF';
             const newState = (current === targetState) ? 'OFF' : targetState;
@@ -417,7 +420,7 @@
             stationList.forEach(st => {
                 localStateRegistry[st] = 'OFF';
                 updateButtonUI(st, 'OFF');
-                updateCallConsoleUI(st, false);
+                updateCallUI(st, false);
                 updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
             });
             await Promise.all(updates);
@@ -435,6 +438,7 @@
             if (state === 'GO') goBtn.classList.add('active');
         }
 
+        // --- KEYBOARD CAPTURE INTERCEPT ENGINE ---
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key === '\\') { e.preventDefault(); triggerTargetedMasterGo(); return; }
