@@ -33,8 +33,19 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             z-index: 10;
         }
+        
+        /* Standard Standby Red Flash */
         body.standby-flash {
             background-color: #ff0000 !important;
+        }
+
+        /* High-Priority Orange Attention Call Flash */
+        @keyframes emergencyCallFlash {
+            0%, 100% { background-color: #000000; }
+            50% { background-color: #ff9900; }
+        }
+        body.attention-call-active {
+            animation: emergencyCallFlash 0.5s infinite !important;
         }
     </style>
 </head>
@@ -50,27 +61,23 @@
             auth: { persistSession: false }
         });
 
-        const hash = window.location.hash.replace('#', '').trim();
+        const hash = window.location.hash.replace('#', '').trim().toUpperCase();
 
-        // Standard, clean query loop that forces real-time fetches
-        async function checkStationStatus() {
+        // Fetches the current state of both the cue lights and the call status
+        async function fetchInitialStatus() {
             if (!hash) return;
             try {
-                // Alternating the sort direction on every single tick completely shatters the browser cache
-                const toggleSort = new Date().getTime() % 2 === 0;
-                
-                let { data, error } = await supabaseClient
+                let { data } = await supabaseClient
                     .from('cues')
-                    .select('state')
+                    .select('state, is_calling')
                     .eq('station', hash)
-                    .order('id', { ascending: toggleSort }) 
                     .maybeSingle();
 
                 if (data) {
-                    updateLightUI(String(data.state).toUpperCase());
+                    updateLightUI(String(data.state).toUpperCase(), data.is_calling);
                 }
             } catch (err) {
-                console.error("Status check failed:", err);
+                console.error("Initial fetch failed:", err);
             }
         }
 
@@ -82,25 +89,30 @@
             }
             title.innerText = hash;
 
-            // Run first check immediately on boot
-            await checkStationStatus();
+            await fetchInitialStatus();
 
-            // REALTIME STREAM: Changes colors immediately upon table updates
-            supabaseClient.channel(`live-${hash}`)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues', filter: `station=eq.${hash}` }, 
+            // Realtime listener watching for both state and call updates
+            supabaseClient.channel('crew-global-sync')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
-                    if (payload.new) {
-                        updateLightUI(String(payload.new.state).toUpperCase());
+                    if (payload.new && payload.new.station.toUpperCase() === hash) {
+                        updateLightUI(String(payload.new.state).toUpperCase(), payload.new.is_calling);
                     } 
                 }
             ).subscribe();
-
-            // BACKUP POLL: Standard, error-free refresh loops 3 times every second
-            setInterval(checkStationStatus, 350);
         }
 
-        function updateLightUI(state) {
-            if (state === 'STANDBY') {
+        function updateLightUI(cueState, isCalling) {
+            // Priority 1: If Master Console is signaling a CALL, flash orange regardless of cue state
+            if (isCalling) {
+                document.body.classList.add('attention-call-active');
+                return;
+            }
+            
+            // Priority 2: If no call is active, drop back to regular cue light tracking
+            document.body.classList.remove('attention-call-active');
+
+            if (cueState === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
                 document.body.classList.remove('standby-flash');
