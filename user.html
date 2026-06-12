@@ -18,10 +18,12 @@
             display: flex;
             justify-content: flex-start;
             align-items: flex-start;
-            transition: background-color 0.05s ease;
+            transition: background-color 0.05s ease, opacity 0.1s ease;
             user-select: none;
             overflow: hidden;
+            position: relative;
         }
+        
         #position-tag {
             font-size: 3.5rem;
             font-weight: 900;
@@ -31,20 +33,61 @@
             z-index: 10;
         }
         
-        body.standby-flash { background-color: #ff0000 !important; }
-
-        @keyframes emergencyCallFlash {
-            0%, 100% { background-color: #000000; }
-            50% { background-color: #ff9900; }
+        body.standby-flash { 
+            background-color: #ff0000 !important; 
         }
+
+        /* --- CALL ACTIVE STATE: DROPS BASE PAGE TO 50% OPACITY --- */
         body.attention-call-active {
-            animation: emergencyCallFlash 0.5s infinite !important;
+            opacity: 0.5;
+        }
+
+        /* --- 20% HEIGHT ORANGE/YELLOW COLOR CYCLE ALERT BAR --- */
+        #call-overlay-bar {
+            display: none; /* Hidden unless called */
+            position: absolute;
+            top: 40%; /* Positioned across the middle band */
+            left: 0;
+            width: 100vw;
+            height: 20vh; /* Exactly 20% window height */
+            z-index: 9999; /* Forces banner to sit completely 100% visible on top */
+            opacity: 1 !important; /* Overrides the body's 50% opacity filter */
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Continuous Color Sequence: Orange -> Off -> Yellow -> Off -> Orange */
+        @keyframes callColorPattern {
+            0%, 20%, 100% { background-color: #ff9900; }  /* Orange */
+            35% { background-color: transparent; }        /* Off */
+            55%, 75% { background-color: #ffcc00; }       /* Yellow */
+            90% { background-color: transparent; }        /* Off */
+        }
+
+        body.attention-call-active #call-overlay-bar {
+            display: flex;
+            animation: callColorPattern 1.6s infinite;
+        }
+
+        #call-overlay-text {
+            color: #000000; /* Solid Black Text Specification */
+            font-size: calc(2.2vw + 1.2rem);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-align: center;
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
     <div id="position-tag">LOADING...</div>
+
+    <div id="call-overlay-bar">
+        <div id="call-overlay-text">STAGE MANAGEMENT IS CALLING</div>
+    </div>
 
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
@@ -53,7 +96,7 @@
 
         const hash = window.location.hash.replace('#', '').trim().toUpperCase();
 
-        // High-frequency API sync mechanism (Backup Loop)
+        // High-frequency Background Sync Mechanism (Backup Loop)
         async function syncDataFromDatabase() {
             if (!hash) return;
             try {
@@ -67,7 +110,7 @@
                     updateLightUI(String(data.state).toUpperCase(), data.is_calling);
                 }
             } catch (err) {
-                console.error("Sync error:", err);
+                console.error("Database polling error:", err);
             }
         }
 
@@ -79,10 +122,10 @@
             }
             title.innerText = hash;
 
-            // Initial pull
+            // Initial immediate check on page load
             await syncDataFromDatabase();
 
-            // Realtime Stream Interceptor
+            // Realtime Stream WebSocket Listener
             supabaseClient.channel('crew-global-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
@@ -92,20 +135,21 @@
                 }
             ).subscribe();
 
-            // Safety fallback engine - scans database every 1000ms
+            // Safety Engine Fallback Loop - updates page manually every 1000ms
             setInterval(syncDataFromDatabase, 1000);
         }
 
         function updateLightUI(cueState, isCalling) {
-            // Priority 1: Orange Master Call Loop
+            // Priority 1: Check Master Call Registry
             if (isCalling === true || isCalling === 'true') {
                 document.body.classList.add('attention-call-active');
                 return;
             }
             
+            // Drop call state if false
             document.body.classList.remove('attention-call-active');
 
-            // Priority 2: Standard Standby Light
+            // Priority 2: Standard Standby Light State Routing
             if (cueState === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
