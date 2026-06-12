@@ -44,6 +44,67 @@
 
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const hash = window.location.hash.replace('#', '').trim();
+
+        // Targets the specific row for this station and parses the light state
+        async function checkStationStatus() {
+            if (!hash) return;
+            let { data } = await supabaseClient.from('cues').select('state').eq('station', hash).single();
+            if (data) {
+                updateLightUI(String(data.state).toUpperCase());
+            }
+        }
+
+        async function initStation() {
+            const title = document.getElementById('position-tag');
+            if (!hash) {
+                title.innerText = "NO POS SET";
+                return;
+            }
+            title.innerText = hash;
+
+            // Run first status check immediately on boot
+            await checkStationStatus();
+
+            // REALTIME STREAM: Changes colors immediately upon table updates
+            supabaseClient.channel(`live-${hash}`)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues', filter: `station=eq.${hash}` }, 
+                payload => { 
+                    if (payload.new) {
+                        updateLightUI(String(payload.new.state).toUpperCase());
+                    } 
+                }
+            ).subscribe();
+
+            // BACKUP POLL: Forces a data refresh twice every second to catch any skipped frames
+            setInterval(checkStationStatus, 500);
+        }
+
+        function updateLightUI(state) {
+            if (state === 'STANDBY') {
+                document.body.classList.add('standby-flash');
+            } else {
+                document.body.classList.remove('standby-flash');
+            }
+        }
+
+        window.onload = initStation;
+        window.addEventListener('hashchange', () => window.location.reload());
+    </script>
+</body>
+</html>            background-color: #ff0000 !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="position-tag">LOADING...</div>
+
+    <script>
+        const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
         // Loaded with your actual verified legacy anon public JWT
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
