@@ -60,14 +60,14 @@
         /* Continuous Color Sequence: Orange -> Off -> Yellow -> Off -> Orange */
         @keyframes callColorPattern {
             0%, 20%, 100% { background-color: #ff9900; }  /* Orange */
-            35% { background-color: transparent; }        /* Off */
+            35% { background-color: #ff0000; }        /* Off */
             55%, 75% { background-color: #ffcc00; }       /* Yellow */
-            90% { background-color: transparent; }        /* Off */
+            90% { background-color: #ff0000; }        /* Off */
         }
 
         body.attention-call-active #call-overlay-bar {
             display: flex;
-            animation: callColorPattern 0.8s infinite;
+            animation: callColorPattern 0.3s infinite;
         }
 
         #call-overlay-text {
@@ -136,7 +136,7 @@
             ).subscribe();
 
             // Safety Engine Fallback Loop - updates page manually every 1000ms
-            setInterval(syncDataFromDatabase, 200);
+            setInterval(syncDataFromDatabase, 50);
         }
 
         function updateLightUI(cueState, isCalling) {
