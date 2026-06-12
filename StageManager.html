@@ -31,7 +31,7 @@
             user-select: none;
         }
 
-        /* --- UPPER RACK (15% Viewport Height) --- */
+        /* --- UPPER RACK (15% Height) --- */
         .top-utility-bar {
             height: 15vh;
             min-height: 80px;
@@ -48,7 +48,7 @@
             font-family: monospace;
             font-weight: bold;
             font-size: calc(1.4vh + 1.1rem);
-            color: #ffffff; /* Crisp White Font Specification */
+            color: #ffffff;
             display: flex;
             align-items: center;
         }
@@ -69,7 +69,6 @@
             border-radius: 4px;
             text-transform: uppercase;
         }
-        .sw-btn:active { background-color: #444; }
 
         .macro-container {
             display: flex;
@@ -94,7 +93,7 @@
         .btn-master-go { background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%); }
         .btn-master-reset { background: linear-gradient(180deg, #444 0%, #222 100%); border-color: #555; }
 
-        /* --- CUE LIGHT DECK (85% Viewport Height) --- */
+        /* --- CUE LIGHT DECK (85% Height) --- */
         .console-rack {
             height: 85vh;
             display: grid;
@@ -118,7 +117,6 @@
             box-sizing: border-box;
         }
 
-        /* --- NEW CALL SIGNALING DASH --- */
         .call-dash-header {
             width: 100%;
             display: flex;
@@ -156,7 +154,6 @@
             border-color: #ff3333;
         }
 
-        /* Flashing Call Effect keyframes */
         @keyframes callFlashLoop {
             0%, 100% { background-color: var(--box-bg); }
             50% { background-color: #5d3a00; border-color: var(--orange-call); }
@@ -165,7 +162,6 @@
             animation: callFlashLoop 0.5s infinite;
         }
 
-        /* --- CORE CONTROL INTERFACE PUSHBUTTONS --- */
         .cue-btn {
             width: 82%;
             aspect-ratio: 1 / 1; 
@@ -248,9 +244,9 @@
         };
 
         let localStateRegistry = {};
-        let activeCallTimers = {}; // Tracking index for the 8-second auto-extinguish logs
+        let activeCallTimers = {};
 
-        // --- CLOCK CONTROLLER (HH:MM:SS format) ---
+        // --- WALL CLOCK ---
         function updateWallClock() {
             const now = new Date();
             const hours = String(now.getHours()).padStart(2, '0');
@@ -261,7 +257,7 @@
         setInterval(updateWallClock, 1000);
         updateWallClock();
 
-        // --- STOPWATCH CONTROLLER (HH:MM:SS:MSS format) ---
+        // --- STOPWATCH ---
         let swInterval = null;
         let swElapsedTime = 0;
 
@@ -276,12 +272,12 @@
                 swInterval = setInterval(() => {
                     swElapsedTime = Date.now() - startTime;
                     renderStopwatchUI();
-                }, 10); // Elevated sampling speed for clean millisecond tracking
+                }, 10);
                 btn.innerText = "Stop";
             }
         }
 
-        function resetStopwatch() {
+        var resetStopwatch = function() {
             clearInterval(swInterval);
             swInterval = null;
             swElapsedTime = 0;
@@ -302,13 +298,14 @@
                 `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
         }
 
-        // --- LIVE DATA LINK SUBSYSTEM ---
+        // --- DATA OPERATIONS ---
         async function syncDataFromDatabase() {
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             if (currentCues) {
                 currentCues.forEach(row => {
                     localStateRegistry[row.station] = String(row.state).toUpperCase();
                     updateButtonUI(row.station, localStateRegistry[row.station]);
+                    updateCallConsoleUI(row.station, Boolean(row.is_calling));
                 });
             }
         }
@@ -345,50 +342,54 @@
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
                     if(payload.new) {
-                        localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
-                        updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
+                        if (payload.new.state !== undefined) {
+                            localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
+                            updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
+                        }
+                        if (payload.new.is_calling !== undefined) {
+                            updateCallConsoleUI(payload.new.station, Boolean(payload.new.is_calling));
+                        }
                     }
                 }
             ).subscribe();
-
-            setInterval(syncDataFromDatabase, 1000);
         }
 
-        // --- CALL SIGNAL DRIVERS ---
-        function fireCallSequence(station) {
-            const strip = document.getElementById(`strip-${station}`);
-            const cancelBtn = document.getElementById(`cnc-${station}`);
-            if (!strip) return;
+        // --- CONSOLE CALL UTILITIES ---
+        async function fireCallSequence(station) {
+            if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
 
-            // Clear any active running timer if they double-hit CALL
-            if (activeCallTimers[station]) {
-                clearTimeout(activeCallTimers[station]);
-            }
+            updateCallConsoleUI(station, true);
+            await supabaseClient.from('cues').update({ is_calling: true }).eq('station', station);
 
-            // Arm UI States
-            strip.classList.add('flashing-call-active');
-            cancelBtn.classList.add('active-kill');
-
-            // Set strict 8000ms Auto-Extinguish window
-            activeCallTimers[station] = setTimeout(() => {
-                killCallSequence(station);
+            activeCallTimers[station] = setTimeout(async () => {
+                await killCallSequence(station);
             }, 8000);
         }
 
-        function killCallSequence(station) {
-            const strip = document.getElementById(`strip-${station}`);
-            const cancelBtn = document.getElementById(`cnc-${station}`);
-            
+        async function killCallSequence(station) {
             if (activeCallTimers[station]) {
                 clearTimeout(activeCallTimers[station]);
                 delete activeCallTimers[station];
             }
-
-            if (strip) strip.classList.remove('flashing-call-active');
-            if (cancelBtn) cancelBtn.classList.remove('active-kill');
+            updateCallConsoleUI(station, false);
+            await supabaseClient.from('cues').update({ is_calling: false }).eq('station', station);
         }
 
-        // --- GENERAL ROUTING SWITCHES ---
+        function updateCallConsoleUI(station, isCalling) {
+            const strip = document.getElementById(`strip-${station}`);
+            const cancelBtn = document.getElementById(`cnc-${station}`);
+            if (!strip || !cancelBtn) return;
+
+            if (isCalling) {
+                strip.classList.add('flashing-call-active');
+                cancelBtn.classList.add('active-kill');
+            } else {
+                strip.classList.remove('flashing-call-active');
+                cancelBtn.classList.remove('active-kill');
+            }
+        }
+
+        // --- BUTTON HANDLING ---
         async function toggleSignal(station, targetState) {
             const current = localStateRegistry[station] || 'OFF';
             const newState = (current === targetState) ? 'OFF' : targetState;
@@ -416,8 +417,8 @@
             stationList.forEach(st => {
                 localStateRegistry[st] = 'OFF';
                 updateButtonUI(st, 'OFF');
-                killCallSequence(st); // Resets active call flashes along with the cue values
-                updates.push(supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', st));
+                updateCallConsoleUI(st, false);
+                updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
             });
             await Promise.all(updates);
         }
@@ -434,7 +435,6 @@
             if (state === 'GO') goBtn.classList.add('active');
         }
 
-        // --- KEYBOARD LISTENER ---
         window.addEventListener('keydown', (e) => {
             const key = e.key.toLowerCase();
             if (key === '\\') { e.preventDefault(); triggerTargetedMasterGo(); return; }
