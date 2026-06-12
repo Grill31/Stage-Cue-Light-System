@@ -91,35 +91,40 @@
 
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
-        // Loaded with your actual verified legacy anon public JWT
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
 
+        // Pulls the latest data directly from the table columns
+        async function syncDataFromDatabase() {
+            let { data: currentCues } = await supabaseClient.from('cues').select('*');
+            if (currentCues) {
+                currentCues.forEach(row => {
+                    updateButtonUI(row.station, String(row.state).toUpperCase());
+                });
+            }
+        }
+
         async function buildConsole() {
             const rack = document.getElementById('master-rack');
             rack.innerHTML = '';
 
-            let { data: currentCues } = await supabaseClient.from('cues').select('*');
-            const stateMap = {};
-            if (currentCues) {
-                currentCues.forEach(row => stateMap[row.station] = String(row.state).toUpperCase());
-            }
-
             stationList.forEach(st => {
-                const currentStatus = stateMap[st] || 'OFF';
                 const strip = document.createElement('div');
                 strip.className = 'channel-strip';
                 strip.innerHTML = `
-                    <button class="cue-btn btn-standby ${currentStatus === 'STANDBY' ? 'active' : ''}" id="std-${st}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
+                    <button class="cue-btn btn-standby" id="std-${st}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
                     <div class="label-window">${st}</div>
-                    <button class="cue-btn btn-go ${currentStatus === 'GO' ? 'active' : ''}" id="go-${st}" onclick="toggleSignal('${st}', 'GO')"></button>
+                    <button class="cue-btn btn-go" id="go-${st}" onclick="toggleSignal('${st}', 'GO')"></button>
                 `;
                 rack.appendChild(strip);
             });
 
-            // Listen live to table updates via supabase_realtime
+            // Initial fetch to paint the board
+            await syncDataFromDatabase();
+
+            // REALTIME LISTENER: Instantly updates buttons when anyone changes data
             supabaseClient.channel('sm-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
@@ -128,6 +133,9 @@
                     }
                 }
             ).subscribe();
+
+            // BACKUP POLL: Checks the database every 500ms if websockets lag or go out
+            setInterval(syncDataFromDatabase, 500);
         }
 
         async function toggleSignal(station, targetState) {
