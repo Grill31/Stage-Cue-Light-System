@@ -6,30 +6,72 @@
     <title>Crew Cue Station</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { background-color: #000000 !important; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; height: 100vh; width: 100vw; box-sizing: border-box; display: flex; justify-content: flex-start; align-items: flex-start; transition: background-color 0.05s ease; user-select: none; -webkit-user-select: none; overflow: hidden; }
-        #position-tag { font-size: 3.5rem; font-weight: 900; margin: 30px 0 0 30px; text-transform: uppercase; letter-spacing: 2px; color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 10; }
-        body.standby-flash { background-color: #ff0000 !important; }
+        body {
+            background-color: #000000 !important;
+            color: #ffffff;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            transition: background-color 0.05s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        #position-tag {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin: 30px 0 0 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+        body.standby-flash {
+            background-color: #ff0000 !important;
+        }
     </style>
 </head>
 <body>
+
     <div id="position-tag">LOADING...</div>
+
     <script>
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
-        const SUPABASE_KEY = "sb_publishable_ztUNSuNBHDLkdmI7MQlxxA_QEfkXMVF"; 
+        // Loaded with your actual verified legacy anon public JWT
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         const hash = window.location.hash.replace('#', '').trim();
 
         async function initStation() {
             const title = document.getElementById('position-tag');
-            if (!hash) { title.innerText = "NO POS SET"; return; }
+            if (!hash) {
+                title.innerText = "NO POS SET";
+                return;
+            }
             title.innerText = hash;
 
+            // Fetch initial data state from row matching the specific station hash
             let { data } = await supabaseClient.from('cues').select('state').eq('station', hash).single();
-            if (data) updateLightUI(data.state);
+            if (data) {
+                updateLightUI(String(data.state).toUpperCase());
+            }
 
+            // Stream realtime row modifications for this station channel
             supabaseClient.channel(`live-${hash}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues', filter: `station=eq.${hash}` }, 
-                payload => { if (payload.new) updateLightUI(payload.new.state); }
+                payload => { 
+                    if (payload.new) {
+                        updateLightUI(String(payload.new.state).toUpperCase());
+                    } 
+                }
             ).subscribe();
         }
 
@@ -37,9 +79,11 @@
             if (state === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
+                document.body.classList.remove('remove-flash'); // Clean fallback
                 document.body.classList.remove('standby-flash');
             }
         }
+
         window.onload = initStation;
         window.addEventListener('hashchange', () => window.location.reload());
     </script>
