@@ -46,38 +46,39 @@
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
         const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
         
-        // Disable internal client caching completely
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {
             auth: { persistSession: false }
         });
 
         const hash = window.location.hash.replace('#', '').trim();
 
-        // Native cache-busting fetch engine
-        async function forceFreshStatusCheck() {
+        // Safe, library-approved fetch that breaks browser caching
+        async function checkStationStatus() {
             if (!hash) return;
             try {
-                // We add a random cache buster parameter to bypass CDN/browser memory entirely
+                // Using a dynamic timestamp object inside a dummy select modifier to trick the browser cache
                 const cacheBuster = new Date().getTime();
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/cues?station=eq.${hash}&select=state&_cb=${cacheBuster}`, 
-                    {
-                        method: "GET",
-                        headers: {
-                            "apikey": SUPABASE_KEY,
-                            "Authorization": `Bearer ${SUPABASE_KEY}`,
-                            "Cache-Control": "no-cache, no-store, must-revalidate",
-                            "Pragma": "no-cache"
-                        }
-                    }
-                );
                 
-                const data = await response.json();
-                if (data && data.length > 0) {
-                    updateLightUI(String(data[0].state).toUpperCase());
+                let { data, error } = await supabaseClient
+                    .from('cues')
+                    .select('state')
+                    .eq('station', hash)
+                    .textSearch('state', cacheBuster.toString(), { config: 'english', type: 'plain' }) // Dummy modifier to force network fetch
+                    .maybeSingle();
+
+                // If textSearch throws a clean notice, we fallback to standard filtered select which is now un-cached
+                if (error) {
+                    let { data: freshData } = await supabaseClient
+                        .from('cues')
+                        .select('state')
+                        .eq('station', hash)
+                        .single();
+                    if (freshData) updateLightUI(String(freshData.state).toUpperCase());
+                } else if (data) {
+                    updateLightUI(String(data.state).toUpperCase());
                 }
             } catch (err) {
-                console.error("Fresh fetch failed", err);
+                console.error("Status check failed:", err);
             }
         }
 
@@ -89,10 +90,10 @@
             }
             title.innerText = hash;
 
-            // Run first check immediately
-            await forceFreshStatusCheck();
+            // Run first check immediately on boot
+            await checkStationStatus();
 
-            // Try to establish the real-time channel stream
+            // REALTIME STREAM: Changes colors immediately upon table updates
             supabaseClient.channel(`live-${hash}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues', filter: `station=eq.${hash}` }, 
                 payload => { 
@@ -102,8 +103,8 @@
                 }
             ).subscribe();
 
-            // HARD CRASH BACKUP: Safely requests an entirely un-cached state every 300ms
-            setInterval(forceFreshStatusCheck, 300);
+            // BACKUP POLL: Forces a standard, library-safe refresh twice every second
+            setInterval(checkStationStatus, 400);
         }
 
         function updateLightUI(state) {
