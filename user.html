@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         body {
-            background-color: #000000 !important; /* Forces total blackout backstage */
+            background-color: #000000 !important;
             color: #ffffff;
             font-family: system-ui, -apple-system, sans-serif;
             margin: 0;
@@ -23,8 +23,6 @@
             -webkit-user-select: none;
             overflow: hidden;
         }
-        
-        /* Top Left Position Name Styling */
         #position-tag {
             font-size: 3.5rem;
             font-weight: 900;
@@ -35,8 +33,6 @@
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
             z-index: 10;
         }
-
-        /* Full screen bright solid red flash rule */
         body.standby-flash {
             background-color: #ff0000 !important;
         }
@@ -47,54 +43,44 @@
     <div id="position-tag">LOADING...</div>
 
     <script>
-        // Your live database connection strings
         const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
         const SUPABASE_KEY = "sb_publishable_ztUNSuNBHDLkdmI7MQlxxA_QEfkXMVF"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // Reads the tag from the URL (e.g., /user.html#LX extracts "LX")
         const hash = window.location.hash.replace('#', '').trim();
 
         async function initStation() {
             const title = document.getElementById('position-tag');
             if (!hash) {
                 title.innerText = "NO POS SET";
-                title.style.color = "#ff2a2a";
                 return;
             }
-            
-            // Set top-left label text
             title.innerText = hash;
 
-            // 1. Check current database state immediately on page load
-            let { data, error } = await supabaseClient.from('cues').select('state').eq('station', hash).single();
+            let { data } = await supabaseClient.from('cues').select('state').eq('station', hash).single();
             if (data) {
-                updateLightUI(data.state);
+                updateLightUI(String(data.state).toLowerCase());
             }
 
-            // 2. Open up a real-time listening stream for changes to this station row
             supabaseClient.channel(`live-${hash}`)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues', filter: `station=eq.${hash}` }, 
                 payload => { 
                     if (payload.new) {
-                        updateLightUI(payload.new.state);
+                        updateLightUI(String(payload.new.state).toLowerCase());
                     } 
                 }
             ).subscribe();
         }
 
-        // Handles the cue-light visual states based on the Stage Manager buttons
         function updateLightUI(state) {
             if (state === 'standby') {
-                document.body.classList.add('standby-flash'); // Screen turns bright solid RED
+                document.body.classList.add('standby-flash');
             } else {
-                document.body.classList.remove('standby-flash'); // Both 'go' and 'off' clear back to BLACK
+                document.body.classList.remove('standby-flash');
             }
         }
 
         window.onload = initStation;
-        
-        // Reloads the interface if a technician types a different channel hash into the URL bar
         window.addEventListener('hashchange', () => window.location.reload());
     </script>
 </body>
