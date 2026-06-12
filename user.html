@@ -53,11 +53,21 @@
 
         const hash = window.location.hash.replace('#', '').trim().toUpperCase();
 
-        async function fetchInitialStatus() {
+        // High-frequency API sync mechanism (Backup Loop)
+        async function syncDataFromDatabase() {
             if (!hash) return;
-            let { data } = await supabaseClient.from('cues').select('state, is_calling').eq('station', hash).maybeSingle();
-            if (data) {
-                updateLightUI(String(data.state).toUpperCase(), data.is_calling);
+            try {
+                let { data } = await supabaseClient
+                    .from('cues')
+                    .select('state, is_calling')
+                    .eq('station', hash)
+                    .maybeSingle();
+                
+                if (data) {
+                    updateLightUI(String(data.state).toUpperCase(), data.is_calling);
+                }
+            } catch (err) {
+                console.error("Sync error:", err);
             }
         }
 
@@ -69,9 +79,10 @@
             }
             title.innerText = hash;
 
-            await fetchInitialStatus();
+            // Initial pull
+            await syncDataFromDatabase();
 
-            // Realtime listening matrix listening for ALL column updates
+            // Realtime Stream Interceptor
             supabaseClient.channel('crew-global-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
@@ -80,6 +91,9 @@
                     } 
                 }
             ).subscribe();
+
+            // Safety fallback engine - scans database every 1000ms
+            setInterval(syncDataFromDatabase, 1000);
         }
 
         function updateLightUI(cueState, isCalling) {
@@ -91,7 +105,7 @@
             
             document.body.classList.remove('attention-call-active');
 
-            // Priority 2: Standard Cue State Tracking
+            // Priority 2: Standard Standby Light
             if (cueState === 'STANDBY') {
                 document.body.classList.add('standby-flash');
             } else {
