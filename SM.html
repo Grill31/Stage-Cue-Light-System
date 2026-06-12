@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SM Master Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --box-bg: #1a1a1a;
+            --red-on: #ff2a2a;
+            --red-off: #4d0a0a;
+            --green-on: #2acc2a;
+            --green-off: #0a4d0a;
+            --panel-border: #3a3a3a;
+        }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-color);
+            color: #fff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* --- UPPER RACK (Takes up exactly 15% of the total screen height) --- */
+        .top-utility-bar {
+            height: 15vh;
+            min-height: 80px;
+            display: grid;
+            grid-template-columns: 1.2fr 1.5fr 1.2fr; /* Perfect balancing for left, center, right modules */
+            align-items: center;
+            background-color: #181818;
+            border-bottom: 5px ridge var(--panel-border);
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        /* Time & Macro Displays */
+        .time-module {
+            font-family: monospace;
+            font-weight: bold;
+            font-size: calc(1.8vh + 1.2rem);
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0,255,204,0.4);
+            display: flex;
+            align-items: center;
+        }
+
+        .stopwatch-container {
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .sw-btn {
+            background-color: #333;
+            color: #fff;
+            border: 2px solid #555;
+            padding: 6px 12px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        .sw-btn:active { background-color: #444; }
+
+        /* Master Macro Command Trigger */
+        .macro-container {
+            display: flex;
+            justify-content: center;
+        }
+        .macro-btn {
+            background: linear-gradient(180deg, #aa2a2a 0%, #6a1010 100%);
+            color: #fff;
+            border: 3px solid #111;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 900;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+            transition: all 0.05s ease;
+        }
+        .macro-btn:active {
+            transform: scale(0.96);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        }
+
+        /* --- CUE LIGHT DECK (Takes up the remaining 85% of screen height) --- */
+        .console-rack {
+            height: 85vh;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr); 
+            gap: 12px;
+            padding: 15px;
+            background-color: #222;
+            box-sizing: border-box;
+        }
+
+        .channel-strip {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--box-bg);
+            padding: 2.5vh 10px;
+            border: 2px solid #2d2d2d;
+            border-radius: 6px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            box-sizing: border-box;
+        }
+
+        /* Industrial Cue Target Pushbuttons */
+        .cue-btn {
+            width: 85%;
+            aspect-ratio: 1 / 1; 
+            max-width: 155px;
+            border: 5px solid #111;
+            border-radius: 50%;
+            cursor: pointer;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.05s ease;
+        }
+
+        .btn-standby {
+            background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 6px rgba(0,0,0,0.5);
+        }
+
+        .btn-standby.active {
+            background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%);
+            box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff;
+            border-color: #fff;
+            transform: scale(0.98);
+        }
+
+        .btn-go {
+            background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 6px rgba(0,0,0,0.5);
+        }
+
+        .btn-go.active {
+            background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%);
+            box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff;
+            border-color: #fff;
+            transform: scale(0.98);
+        }
+
+        /* Clear Label Command Stations */
+        .label-window {
+            width: 95%;
+            background-color: #f8f9fa;
+            color: #000;
+            font-weight: 900;
+            font-size: calc(1.3vw + 1rem); 
+            padding: 10px 0;
+            text-align: center;
+            text-transform: uppercase;
+            border: 4px solid #000;
+            border-radius: 4px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            letter-spacing: 1px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="top-utility-bar">
+        <div class="time-module" id="wall-clock">00:00:00 IM</div>
+        
+        <div class="macro-container">
+            <button class="macro-btn" onclick="triggerGlobalStandby()">Standby All Active</button>
+        </div>
+        
+        <div class="time-module stopwatch-container">
+            <span id="sw-display">00:00.0</span>
+            <button class="sw-btn" id="sw-toggle" onclick="toggleStopwatch()">Start</button>
+            <button class="sw-btn" onclick="resetStopwatch()">Reset</button>
+        </div>
+    </div>
+
+    <div class="console-rack" id="master-rack"></div>
+
+    <script>
+        const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
+        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
+        let localStateRegistry = {};
+
+        // --- WALL CLOCK SUBSYSTEM ---
+        function updateWallClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // convert '0' to '12'
+            document.getElementById('wall-clock').innerText = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+        }
+        setInterval(updateWallClock, 1000);
+        updateWallClock();
+
+        // --- STOPWATCH SUBSYSTEM ---
+        let swInterval = null;
+        let swElapsedTime = 0; // stored in milliseconds
+
+        function toggleStopwatch() {
+            const btn = document.getElementById('sw-toggle');
+            if (swInterval) {
+                clearInterval(swInterval);
+                swInterval = null;
+                btn.innerText = "Start";
+            } else {
+                const startTime = Date.now() - swElapsedTime;
+                swInterval = setInterval(() => {
+                    swElapsedTime = Date.now() - startTime;
+                    renderStopwatchUI();
+                }, 100);
+                btn.innerText = "Stop";
+            }
+        }
+
+        function resetStopwatch() {
+            clearInterval(swInterval);
+            swInterval = null;
+            swElapsedTime = 0;
+            document.getElementById('sw-toggle').innerText = "Start";
+            renderStopwatchUI();
+        }
+
+        function renderStopwatchUI() {
+            const totalSeconds = Math.floor(swElapsedTime / 1000);
+            const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const seconds = String(totalSeconds % 60).padStart(2, '0');
+            const tenths = Math.floor((swElapsedTime % 1000) / 100);
+            document.getElementById('sw-display').innerText = `${minutes}:${seconds}.${tenths}`;
+        }
+
+        // --- CORE DATA OPERATIONS & GRAPHICS ---
+        async function syncDataFromDatabase() {
+            let { data: currentCues } = await supabaseClient.from('cues').select('*');
+            if (currentCues) {
+                currentCues.forEach(row => {
+                    localStateRegistry[row.station] = String(row.state).toUpperCase();
+                    updateButtonUI(row.station, localStateRegistry[row.station]);
+                });
+            }
+        }
+
+        async function buildConsole() {
+            const rack = document.getElementById('master-rack');
+            rack.innerHTML = '';
+
+            stationList.forEach(st => {
+                localStateRegistry[st] = 'OFF';
+                const strip = document.createElement('div');
+                strip.className = 'channel-strip';
+                strip.innerHTML = `
+                    <button class="cue-btn btn-standby" id="std-${st}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
+                    <div class="label-window">${st}</div>
+                    <button class="cue-btn btn-go" id="go-${st}" onclick="toggleSignal('${st}', 'GO')"></button>
+                `;
+                rack.appendChild(strip);
+            });
+
+            await syncDataFromDatabase();
+
+            // Realtime update capture pipeline
+            supabaseClient.channel('sm-sync')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
+                payload => { 
+                    if(payload.new) {
+                        localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
+                        updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
+                    }
+                }
+            ).subscribe();
+
+            setInterval(syncDataFromDatabase, 1000);
+        }
+
+        async function toggleSignal(station, targetState) {
+            const current = localStateRegistry[station] || 'OFF';
+            const newState = (current === targetState) ? 'OFF' : targetState;
+            
+            localStateRegistry[station] = newState;
+            updateButtonUI(station, newState);
+            
+            await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
+        }
+
+        // MASTER MACRO: Flips any channel currently waiting in standby over to active sync states
+        async function triggerGlobalStandby() {
+            const updates = [];
+            
+            stationList.forEach(st => {
+                if (localStateRegistry[st] === 'STANDBY') {
+                    localStateRegistry[st] = 'OFF'; // Toggles off if already active inside macro logic
+                    updateButtonUI(st, 'OFF');
+                    updates.push(supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', st));
+                } else {
+                    localStateRegistry[st] = 'STANDBY';
+                    updateButtonUI(st, 'STANDBY');
+                    updates.push(supabaseClient.from('cues').update({ state: 'STANDBY' }).eq('station', st));
+                }
+            });
+
+            await Promise.all(updates);
+        }
+
+        function updateButtonUI(station, state) {
+            const stdBtn = document.getElementById(`std-${station}`);
+            const goBtn = document.getElementById(`go-${station}`);
+            if (!stdBtn || !goBtn) return;
+
+            stdBtn.classList.remove('active');
+            goBtn.classList.remove('active');
+
+            if (state === 'STANDBY') stdBtn.classList.add('active');
+            if (state === 'GO') goBtn.classList.add('active');
+        }
+
+        window.onload = buildConsole;
+    </script>
+</body>
+</html>
