@@ -94,7 +94,6 @@
         const SUPABASE_KEY = "sb_publishable_ztUNSuNBHDLkdmI7MQlxxA_QEfkXMVF"; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // PERFECTLY ALIGNED TO YOUR SUPABASE ROWS
         const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
 
         async function buildConsole() {
@@ -104,7 +103,8 @@
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             const stateMap = {};
             if (currentCues) {
-                currentCues.forEach(row => stateMap[row.station] = row.state);
+                // Safeguard: Convert database text to lowercase safely
+                currentCues.forEach(row => stateMap[row.station] = String(row.state).toLowerCase());
             }
 
             stationList.forEach(st => {
@@ -121,7 +121,11 @@
 
             supabaseClient.channel('sm-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
-                payload => { updateButtonUI(payload.new.station, payload.new.state); }
+                payload => { 
+                    if(payload.new) {
+                        updateButtonUI(payload.new.station, String(payload.new.state).toLowerCase()); 
+                    }
+                }
             ).subscribe();
         }
 
@@ -131,8 +135,9 @@
             let isCurrentlyActive = (targetState === 'standby' && standbyBtn.classList.contains('active')) || 
                                     (targetState === 'go' && goBtn.classList.contains('active'));
             
-            const newState = isCurrentlyActive ? 'off' : targetState;
-            updateButtonUI(station, newState);
+            // Send back uppercase to keep your database uniform
+            const newState = isCurrentlyActive ? 'OFF' : targetState.toUpperCase();
+            updateButtonUI(station, newState.toLowerCase());
             
             await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
         }
