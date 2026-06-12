@@ -30,12 +30,12 @@
             user-select: none;
         }
 
-        /* --- UPPER RACK (Takes up exactly 15% of the total screen height) --- */
+        /* --- UPPER RACK (15% Viewport Height) --- */
         .top-utility-bar {
             height: 15vh;
             min-height: 80px;
             display: grid;
-            grid-template-columns: 1.2fr 1.5fr 1.2fr; /* Perfect balancing for left, center, right modules */
+            grid-template-columns: 1fr 2fr 1fr;
             align-items: center;
             background-color: #181818;
             border-bottom: 5px ridge var(--panel-border);
@@ -43,11 +43,10 @@
             box-sizing: border-box;
         }
 
-        /* Time & Macro Displays */
         .time-module {
             font-family: monospace;
             font-weight: bold;
-            font-size: calc(1.8vh + 1.2rem);
+            font-size: calc(1.5vh + 1rem);
             color: #00ffcc;
             text-shadow: 0 0 10px rgba(0,255,204,0.4);
             display: flex;
@@ -64,39 +63,43 @@
             color: #fff;
             border: 2px solid #555;
             padding: 6px 12px;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             font-weight: bold;
             cursor: pointer;
             border-radius: 4px;
             text-transform: uppercase;
         }
-        .sw-btn:active { background-color: #444; }
 
-        /* Master Macro Command Trigger */
+        /* Macro Controls layout */
         .macro-container {
             display: flex;
             justify-content: center;
+            gap: 15px;
         }
         .macro-btn {
-            background: linear-gradient(180deg, #aa2a2a 0%, #6a1010 100%);
             color: #fff;
             border: 3px solid #111;
             border-radius: 6px;
             padding: 10px 20px;
             font-weight: 900;
-            font-size: 1rem;
+            font-size: 0.95rem;
             letter-spacing: 1px;
             cursor: pointer;
             text-transform: uppercase;
             box-shadow: 0 4px 6px rgba(0,0,0,0.4);
             transition: all 0.05s ease;
         }
-        .macro-btn:active {
-            transform: scale(0.96);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        .macro-btn:active { transform: scale(0.96); }
+        
+        .btn-master-go {
+            background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%);
+        }
+        .btn-master-reset {
+            background: linear-gradient(180deg, #444 0%, #222 100%);
+            border-color: #555;
         }
 
-        /* --- CUE LIGHT DECK (Takes up the remaining 85% of screen height) --- */
+        /* --- CUE LIGHT DECK (85% Viewport Height) --- */
         .console-rack {
             height: 85vh;
             display: grid;
@@ -118,9 +121,10 @@
             border-radius: 6px;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
             box-sizing: border-box;
+            position: relative;
         }
 
-        /* Industrial Cue Target Pushbuttons */
+        /* Pushbuttons layout */
         .cue-btn {
             width: 85%;
             aspect-ratio: 1 / 1; 
@@ -131,33 +135,41 @@
             outline: none;
             box-sizing: border-box;
             transition: all 0.05s ease;
+            position: relative;
+        }
+        /* Tiny sub-labels showing the hotkey bound to that control target */
+        .cue-btn::after {
+            content: attr(data-key);
+            position: absolute;
+            bottom: -22px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.8rem;
+            color: #666;
+            font-weight: bold;
+            font-family: monospace;
         }
 
         .btn-standby {
             background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%);
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 6px rgba(0,0,0,0.5);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
         }
-
         .btn-standby.active {
             background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%);
             box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff;
             border-color: #fff;
-            transform: scale(0.98);
         }
 
         .btn-go {
             background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%);
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9), 0 4px 6px rgba(0,0,0,0.5);
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
         }
-
         .btn-go.active {
             background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%);
             box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff;
             border-color: #fff;
-            transform: scale(0.98);
         }
 
-        /* Clear Label Command Stations */
         .label-window {
             width: 95%;
             background-color: #f8f9fa;
@@ -178,10 +190,11 @@
 <body>
 
     <div class="top-utility-bar">
-        <div class="time-module" id="wall-clock">00:00:00 IM</div>
+        <div class="time-module" id="wall-clock">00:00:00 AM</div>
         
         <div class="macro-container">
-            <button class="macro-btn" onclick="triggerGlobalStandby()">Standby All Active</button>
+            <button class="macro-btn btn-master-go" onclick="triggerTargetedMasterGo()">Master GO (\)</button>
+            <button class="macro-btn btn-master-reset" onclick="triggerGlobalReset()">Reset All (1)</button>
         </div>
         
         <div class="time-module stopwatch-container">
@@ -199,6 +212,25 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         const stationList = ["LX", "SQ", "SL", "SR", "RAIL", "AUTO", "MD"];
+        
+        // Explicit Hardware Mapping Table
+        const hotkeyMaps = {
+            'q': { station: 'LX', action: 'STANDBY' },
+            'w': { station: 'SQ', action: 'STANDBY' },
+            'e': { station: 'SL', action: 'STANDBY' },
+            'r': { station: 'SR', action: 'STANDBY' },
+            't': { station: 'AUTO', action: 'STANDBY' }, 
+            'y': { station: 'RAIL', action: 'STANDBY' },
+            'u': { station: 'MD', action: 'STANDBY' },
+            'a': { station: 'LX', action: 'GO' },
+            's': { station: 'SQ', action: 'GO' },
+            'd': { station: 'SL', action: 'GO' },
+            'f': { station: 'SR', action: 'GO' },
+            'g': { station: 'AUTO', action: 'GO' },
+            'h': { station: 'RAIL', action: 'GO' },
+            'j': { station: 'MD', action: 'GO' }
+        };
+
         let localStateRegistry = {};
 
         // --- WALL CLOCK SUBSYSTEM ---
@@ -208,8 +240,7 @@
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const seconds = String(now.getSeconds()).padStart(2, '0');
             const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12;
-            hours = hours ? hours : 12; // convert '0' to '12'
+            hours = hours % 12 || 12;
             document.getElementById('wall-clock').innerText = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
         }
         setInterval(updateWallClock, 1000);
@@ -217,7 +248,7 @@
 
         // --- STOPWATCH SUBSYSTEM ---
         let swInterval = null;
-        let swElapsedTime = 0; // stored in milliseconds
+        let swElapsedTime = 0;
 
         function toggleStopwatch() {
             const btn = document.getElementById('sw-toggle');
@@ -251,7 +282,7 @@
             document.getElementById('sw-display').innerText = `${minutes}:${seconds}.${tenths}`;
         }
 
-        // --- CORE DATA OPERATIONS & GRAPHICS ---
+        // --- ENGINE DATA SYNC OPERATIONS ---
         async function syncDataFromDatabase() {
             let { data: currentCues } = await supabaseClient.from('cues').select('*');
             if (currentCues) {
@@ -266,21 +297,26 @@
             const rack = document.getElementById('master-rack');
             rack.innerHTML = '';
 
+            // Map standard reverse-lookup letters for keyboard indicators on the GUI
+            const keyIndicators = {
+                'LX': {std: 'Q', go: 'A'}, 'SQ': {std: 'W', go: 'S'}, 'SL': {std: 'E', go: 'D'},
+                'SR': {std: 'R', go: 'F'}, 'AUTO': {std: 'T', go: 'G'}, 'RAIL': {std: 'Y', go: 'H'}, 'MD': {std: 'U', go: 'J'}
+            };
+
             stationList.forEach(st => {
                 localStateRegistry[st] = 'OFF';
                 const strip = document.createElement('div');
                 strip.className = 'channel-strip';
                 strip.innerHTML = `
-                    <button class="cue-btn btn-standby" id="std-${st}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
+                    <button class="cue-btn btn-standby" id="std-${st}" data-key="${keyIndicators[st].std}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
                     <div class="label-window">${st}</div>
-                    <button class="cue-btn btn-go" id="go-${st}" onclick="toggleSignal('${st}', 'GO')"></button>
+                    <button class="cue-btn btn-go" id="go-${st}" data-key="${keyIndicators[st].go}" onclick="toggleSignal('${st}', 'GO')"></button>
                 `;
                 rack.appendChild(strip);
             });
 
             await syncDataFromDatabase();
 
-            // Realtime update capture pipeline
             supabaseClient.channel('sm-sync')
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
                 payload => { 
@@ -304,22 +340,29 @@
             await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
         }
 
-        // MASTER MACRO: Flips any channel currently waiting in standby over to active sync states
-        async function triggerGlobalStandby() {
+        // TARGETED MASTER GO: Scans the board, captures ONLY active standby rows, flips them to GO
+        async function triggerTargetedMasterGo() {
             const updates = [];
-            
             stationList.forEach(st => {
                 if (localStateRegistry[st] === 'STANDBY') {
-                    localStateRegistry[st] = 'OFF'; // Toggles off if already active inside macro logic
-                    updateButtonUI(st, 'OFF');
-                    updates.push(supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', st));
-                } else {
-                    localStateRegistry[st] = 'STANDBY';
-                    updateButtonUI(st, 'STANDBY');
-                    updates.push(supabaseClient.from('cues').update({ state: 'STANDBY' }).eq('station', st));
+                    localStateRegistry[st] = 'GO';
+                    updateButtonUI(st, 'GO');
+                    updates.push(supabaseClient.from('cues').update({ state: 'GO' }).eq('station', st));
                 }
             });
+            if (updates.length > 0) {
+                await Promise.all(updates);
+            }
+        }
 
+        // GLOBAL PANEL RESET: Wipes all tracking signals down to deep OFF baselines instantly
+        async function triggerGlobalReset() {
+            const updates = [];
+            stationList.forEach(st => {
+                localStateRegistry[st] = 'OFF';
+                updateButtonUI(st, 'OFF');
+                updates.push(supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', st));
+            });
             await Promise.all(updates);
         }
 
@@ -334,6 +377,30 @@
             if (state === 'STANDBY') stdBtn.classList.add('active');
             if (state === 'GO') goBtn.classList.add('active');
         }
+
+        // --- KEYBOARD CAPTURE INTERCEPT ENGINE ---
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            
+            // Intercept Master Actions
+            if (key === '\\') {
+                e.preventDefault();
+                triggerTargetedMasterGo();
+                return;
+            }
+            if (key === '1') {
+                e.preventDefault();
+                triggerGlobalReset();
+                return;
+            }
+
+            // Intercept Channel Strip Hotkeys
+            if (hotkeyMaps[key]) {
+                e.preventDefault();
+                const target = hotkeyMaps[key];
+                toggleSignal(target.station, target.action);
+            }
+        });
 
         window.onload = buildConsole;
     </script>
