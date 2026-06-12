@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SM Cue Master Console</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --border-color: #555;
+            --box-bg: #111;
+            
+            --red-on: #ff2a2a;
+            --red-off: #3d0a0a;
+            --green-on: #2acc2a;
+            --green-off: #0a3d0a;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { margin-bottom: 20px; font-weight: 400; letter-spacing: 1px; }
+
+        /* Master Rack Plate Frame */
+        .console-rack {
+            background-color: #222;
+            border: 4px double #444;
+            padding: 12px;
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            max-width: 95vw;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+        }
+
+        /* Individual Vertical Channel Column */
+        .channel-strip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            background: var(--box-bg);
+            padding: 4px;
+            border: 1px solid #333;
+        }
+
+        /* Physical Square Beveled Buttons */
+        .cue-btn {
+            width: 65px;
+            height: 65px;
+            border: 3px solid #222;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.05s ease;
+            box-sizing: border-box;
+        }
+
+        /* Red Standby Button Row Styling */
+        .btn-standby {
+            background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%);
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .btn-standby.active {
+            background: radial-gradient(circle, #ff6b6b 0%, var(--red-on) 100%);
+            box-shadow: 0 0 15px var(--red-on), inset 0 0 4px rgba(255,255,255,0.6);
+            border-color: #fff;
+        }
+
+        /* Green Go Button Row Styling */
+        .btn-go {
+            background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%);
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5);
+        }
+        .btn-go.active {
+            background: radial-gradient(circle, #6bff6b 0%, var(--green-on) 100%);
+            box-shadow: 0 0 15px var(--green-on), inset 0 0 4px rgba(255,255,255,0.6);
+            border-color: #fff;
+        }
+
+        /* Center Label Windows */
+        .label-window {
+            width: 65px;
+            background-color: #fff;
+            color: #000;
+            font-weight: bold;
+            font-size: 0.9rem;
+            padding: 4px 0;
+            text-align: center;
+            text-transform: uppercase;
+            border: 2px solid #000;
+            box-sizing: border-box;
+            user-select: none;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Stage Manager Master Console</h1>
+    
+    <div class="console-rack" id="master-rack"></div>
+
+    <script>
+        const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_ztUNSuNBHDLkdmI7MQlxxA_QEfkXMVF"; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        // Your exact show setup stations
+        const stationList = ["LX", "SQ", "SL", "SR", "FlyRail", "Spot1", "Spot2", "Deck", "Automation", "Video"];
+
+        async function buildConsole() {
+            const rack = document.getElementById('master-rack');
+            rack.innerHTML = '';
+
+            // Fetch live data state on load to sync button lights immediately
+            let { data: currentCues } = await supabaseClient.from('cues').select('*');
+            const stateMap = {};
+            if (currentCues) {
+                currentCues.forEach(row => stateMap[row.station] = row.state);
+            }
+
+            stationList.forEach(st => {
+                const currentStatus = stateMap[st] || 'off';
+
+                const strip = document.createElement('div');
+                strip.className = 'channel-strip';
+                strip.innerHTML = `
+                    <button class="cue-btn btn-standby ${currentStatus === 'standby' ? 'active' : ''}" id="std-${st}" onclick="toggleSignal('${st}', 'standby')"></button>
+                    <div class="label-window">${st}</div>
+                    <button class="cue-btn btn-go ${currentStatus === 'go' ? 'active' : ''}" id="go-${st}" onclick="toggleSignal('${st}', 'go')"></button>
+                `;
+                rack.appendChild(strip);
+            });
+
+            // Listen to real-time changes to keep master console buttons in sync if double-clicked or changed elsewhere
+            supabaseClient.channel('sm-sync')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
+                payload => {
+                    const { station, state } = payload.new;
+                    updateButtonUI(station, state);
+                }
+            ).subscribe();
+        }
+
+        async function toggleSignal(station, targetState) {
+            const standbyBtn = document.getElementById(`std-${station}`);
+            const goBtn = document.getElementById(`go-${station}`);
+            
+            // If clicking an already active button, turn it off entirely
+            let isCurrentlyActive = (targetState === 'standby' && standbyBtn.classList.contains('active')) || 
+                                    (targetState === 'go' && goBtn.classList.contains('active'));
+            
+            const newState = isCurrentlyActive ? 'off' : targetState;
+            
+            // Fast UI response (optimistic rendering)
+            updateButtonUI(station, newState);
+            
+            // Push out update to Supabase Cloud
+            await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
+        }
+
+        function updateButtonUI(station, state) {
+            const stdBtn = document.getElementById(`std-${station}`);
+            const goBtn = document.getElementById(`go-${station}`);
+            if (!stdBtn || !goBtn) return;
+
+            stdBtn.classList.remove('active');
+            goBtn.classList.remove('active');
+
+            if (state === 'standby') stdBtn.classList.add('active');
+            if (state === 'go') goBtn.classList.add('active');
+        }
+
+        window.onload = buildConsole;
+    </script>
+</body>
+</html>
