@@ -595,7 +595,7 @@ async function buildConsole() {
     ).subscribe();
 }
 
-// --- CONTINGENCY SYSTEM ---
+// --- CONTINGENCY SYSTEM (Using ID 8 for direct reliability) ---
 function openContingencyModal() {
   pendingContingencyType = null;
   document.getElementById('contingency-step-1').style.display = 'block';
@@ -613,7 +613,6 @@ function selectContingencyType(type) {
     closeContingencyModal();
     return;
   }
-  // SHOW_STOP or HOLDING -> Open WHEN options
   pendingContingencyType = type;
   document.getElementById('when-modal-title').innerText = `${type.replace('_', ' ')} — WHEN?`;
   document.getElementById('contingency-step-1').style.display = 'none';
@@ -629,13 +628,23 @@ function confirmContingencyWithTiming(whenOption) {
 
 async function broadcastContingency(stateValue) {
   renderContingencyBanner(stateValue);
-  await supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: stateValue, is_calling: false }, { onConflict: 'station' });
+  const { error } = await supabaseClient
+    .from('cues')
+    .update({ state: stateValue, is_calling: false })
+    .eq('id', 8);
+
+  if (error) console.error("Contingency broadcast error:", error.message);
 }
 
 async function clearContingency() {
   renderContingencyBanner('NONE');
   closeContingencyModal();
-  await supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: 'NONE', is_calling: false }, { onConflict: 'station' });
+  const { error } = await supabaseClient
+    .from('cues')
+    .update({ state: 'NONE', is_calling: false })
+    .eq('id', 8);
+
+  if (error) console.error("Contingency clear error:", error.message);
 }
 
 function renderContingencyBanner(stateValue) {
@@ -767,7 +776,7 @@ async function triggerGlobalReset() {
     updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
   });
   renderContingencyBanner('NONE');
-  updates.push(supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: 'NONE', is_calling: false }, { onConflict: 'station' }));
+  updates.push(supabaseClient.from('cues').update({ state: 'NONE', is_calling: false }).eq('id', 8));
   await Promise.all(updates);
 }
 
