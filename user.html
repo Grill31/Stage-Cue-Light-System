@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crew Cue Station</title>
+<title>Cue Station</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 body {
@@ -232,7 +232,7 @@ async function syncDataFromDatabase() {
 async function initStation() {
   const title = document.getElementById('position-tag');
   if (!hash) {
-    title.innerText = "NO POS SET";
+    title.innerText = "NO POSITION SET";
     return;
   }
   title.innerText = hash;
@@ -255,7 +255,7 @@ async function initStation() {
     ).subscribe();
 
   // Safety Engine Fallback Loop (1000ms)
-  setInterval(syncDataFromDatabase, 1000);
+  setInterval(syncDataFromDatabase, 300);
 }
 
 function updateContingencyUI(stateValue) {
