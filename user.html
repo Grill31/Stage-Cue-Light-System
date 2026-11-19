@@ -1,164 +1,318 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crew Cue Station</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body {
-            background-color: #000000 !important;
-            color: #ffffff;
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 0;
-            padding: 0;
-            height: 100vh;
-            width: 100vw;
-            box-sizing: border-box;
-            display: flex;
-            justify-content: flex-start;
-            align-items: flex-start;
-            transition: background-color 0.05s ease, opacity 0.1s ease;
-            user-select: none;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        #position-tag {
-            font-size: 3.5rem;
-            font-weight: 900;
-            margin: 30px 0 0 30px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            z-index: 10;
-        }
-        
-        body.standby-flash { 
-            background-color: #ff0000 !important; 
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crew Cue Station</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+body {
+  background-color: #000000 !important;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  transition: background-color 0.05s ease, opacity 0.1s ease;
+  user-select: none;
+  overflow: hidden;
+  position: relative;
+}
 
-        /* --- CALL ACTIVE STATE: DROPS BASE PAGE TO 50% OPACITY --- */
-        body.attention-call-active {
-            opacity: 0.85;
-        }
+#position-tag {
+  font-size: 3.5rem;
+  font-weight: 900;
+  margin: 30px 0 0 30px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  z-index: 10;
+}
 
-        /* --- 20% HEIGHT ORANGE/YELLOW COLOR CYCLE ALERT BAR --- */
-        #call-overlay-bar {
-            display: none; /* Hidden unless called */
-            position: absolute;
-            top: 40%; /* Positioned across the middle band */
-            left: 0;
-            width: 100vw;
-            height: 20vh; /* Exactly 20% window height */
-            z-index: 9999; /* Forces banner to sit completely 100% visible on top */
-            opacity: 1 !important; /* Overrides the body's 50% opacity filter */
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
-        }
+body.standby-flash {
+  background-color: #ff0000 !important;
+}
 
-        /* Continuous Color Sequence: Orange -> Off -> Yellow -> Off -> Orange */
-        @keyframes callColorPattern {
-            0%, 20%, 100% { background-color: #ff9900; }  /* Orange */
-            35% { background-color: transparent; }        /* Off */
-            55%, 75% { background-color: #ffcc00; }       /* Yellow */
-            90% { background-color: transparent; }        /* Off */
-        }
+/* --- CALL ACTIVE STATE --- */
+body.attention-call-active {
+  opacity: 0.85;
+}
 
-        body.attention-call-active #call-overlay-bar {
-            display: flex;
-            animation: callColorPattern 1.4s infinite;
-        }
+/* --- GLOBAL CONTINGENCY ALERT OVERLAY --- */
+#crew-contingency-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  padding: 28px 20px;
+  z-index: 10000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.9);
+}
 
-        #call-overlay-text {
-            color: #ffffff; /* Solid White Text Specification */
-            font-size: calc(2.2vw + 1.2rem);
-            font-weight: 1000;
-            text-transform: uppercase;
-            letter-spacing: 3px;
-            text-align: center;
-            width: 100%;
-        }
-    </style>
+#crew-contingency-overlay.type-SHOW_STOP {
+  background-color: #ff1a1a;
+  color: #ffffff;
+  height: 100vh;
+  animation: stopFlash 0.8s infinite;
+}
+
+#crew-contingency-overlay.type-HOLDING {
+  background-color: #ff9900;
+  color: #000000;
+  border-bottom: 6px solid #fff;
+}
+
+#crew-contingency-overlay.type-CAUTION {
+  background-color: #ffd700;
+  color: #000000;
+  border-bottom: 6px solid #000;
+}
+
+@keyframes stopFlash {
+  0%, 100% { background-color: #ff1a1a; }
+  50% { background-color: #800000; }
+}
+
+#contingency-main-text {
+  font-size: calc(3.5vw + 1.8rem);
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  line-height: 1.1;
+}
+
+#contingency-sub-text {
+  font-size: calc(1.8vw + 1rem);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 10px;
+  padding: 6px 18px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 6px;
+}
+
+/* --- MD SPECIAL ALERT BOX --- */
+#md-alert-overlay {
+  display: none;
+  position: fixed;
+  bottom: 8vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 85vw;
+  max-width: 800px;
+  background-color: #8a2be2;
+  color: #ffffff;
+  border: 5px solid #ffffff;
+  border-radius: 12px;
+  padding: 25px;
+  text-align: center;
+  z-index: 9500;
+  box-shadow: 0 0 50px rgba(138, 43, 226, 0.9);
+  animation: mdAlertPulse 1s infinite;
+}
+
+@keyframes mdAlertPulse {
+  0%, 100% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.03); }
+}
+
+#md-alert-title {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  opacity: 0.9;
+  margin-bottom: 6px;
+}
+
+#md-alert-message {
+  font-size: calc(2.5vw + 1.4rem);
+  font-weight: 1000;
+  letter-spacing: 2px;
+}
+
+/* --- 20% HEIGHT ORANGE/YELLOW COLOR CYCLE ALERT BAR --- */
+#call-overlay-bar {
+  display: none;
+  position: absolute;
+  top: 40%;
+  left: 0;
+  width: 100vw;
+  height: 20vh;
+  z-index: 9999;
+  opacity: 1 !important;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+@keyframes callColorPattern {
+  0%, 20%, 100% { background-color: #ff9900; }
+  35% { background-color: transparent; }
+  55%, 75% { background-color: #ffcc00; }
+  90% { background-color: transparent; }
+}
+
+body.attention-call-active #call-overlay-bar {
+  display: flex;
+  animation: callColorPattern 1.4s infinite;
+}
+
+#call-overlay-text {
+  color: #ffffff;
+  font-size: calc(2.2vw + 1.2rem);
+  font-weight: 1000;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-align: center;
+  width: 100%;
+}
+</style>
 </head>
 <body>
 
-    <div id="position-tag">LOADING...</div>
+<div id="crew-contingency-overlay">
+  <div id="contingency-main-text">HOLDING</div>
+  <div id="contingency-sub-text">END OF SONG</div>
+</div>
 
-    <div id="call-overlay-bar">
-        <div id="call-overlay-text">STAGE MANAGEMENT IS CALLING</div>
-    </div>
+<div id="position-tag">LOADING...</div>
 
-    <script>
-        const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+<div id="md-alert-overlay">
+  <div id="md-alert-title">STAGE MANAGEMENT → MD</div>
+  <div id="md-alert-message">LOOP NEEDED</div>
+</div>
 
-        const hash = window.location.hash.replace('#', '').trim().toUpperCase();
+<div id="call-overlay-bar">
+  <div id="call-overlay-text">STAGE MANAGEMENT IS CALLING</div>
+</div>
 
-        // High-frequency Background Sync Mechanism (Backup Loop)
-        async function syncDataFromDatabase() {
-            if (!hash) return;
-            try {
-                let { data } = await supabaseClient
-                    .from('cues')
-                    .select('state, is_calling')
-                    .eq('station', hash)
-                    .maybeSingle();
-                
-                if (data) {
-                    updateLightUI(String(data.state).toUpperCase(), data.is_calling);
-                }
-            } catch (err) {
-                console.error("Database polling error:", err);
-            }
+<script>
+const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const hash = window.location.hash.replace('#', '').trim().toUpperCase();
+
+async function syncDataFromDatabase() {
+  if (!hash) return;
+  try {
+    let { data } = await supabaseClient
+      .from('cues')
+      .select('station, state, is_calling')
+      .in('station', [hash, 'SYSTEM']);
+
+    if (data) {
+      data.forEach(row => {
+        const st = String(row.station).toUpperCase();
+        const val = String(row.state).toUpperCase();
+        if (st === 'SYSTEM') {
+          updateContingencyUI(val);
+        } else if (st === hash) {
+          updateLightUI(val, row.is_calling);
         }
+      });
+    }
+  } catch (err) {
+    console.error("Database polling error:", err);
+  }
+}
 
-        async function initStation() {
-            const title = document.getElementById('position-tag');
-            if (!hash) {
-                title.innerText = "NO POS SET";
-                return;
-            }
-            title.innerText = hash;
+async function initStation() {
+  const title = document.getElementById('position-tag');
+  if (!hash) {
+    title.innerText = "NO POS SET";
+    return;
+  }
+  title.innerText = hash;
 
-            // Initial immediate check on page load
-            await syncDataFromDatabase();
+  await syncDataFromDatabase();
 
-            // Realtime Stream WebSocket Listener
-            supabaseClient.channel('crew-global-sync')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
-                payload => { 
-                    if (payload.new && payload.new.station.toUpperCase() === hash) {
-                        updateLightUI(String(payload.new.state).toUpperCase(), payload.new.is_calling);
-                    } 
-                }
-            ).subscribe();
+  supabaseClient.channel('crew-global-sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'cues' },
+      payload => {
+        if (!payload.new) return;
+        const st = String(payload.new.station).toUpperCase();
+        const val = String(payload.new.state).toUpperCase();
 
-            // Safety Engine Fallback Loop - updates page manually every 1000ms
-            setInterval(syncDataFromDatabase, 10);
+        if (st === 'SYSTEM') {
+          updateContingencyUI(val);
+        } else if (st === hash) {
+          updateLightUI(val, payload.new.is_calling);
         }
+      }
+    ).subscribe();
 
-        function updateLightUI(cueState, isCalling) {
-            // Priority 1: Check Master Call Registry
-            if (isCalling === true || isCalling === 'true') {
-                document.body.classList.add('attention-call-active');
-                return;
-            }
-            
-            // Drop call state if false
-            document.body.classList.remove('attention-call-active');
+  // Safety Engine Fallback Loop (1000ms)
+  setInterval(syncDataFromDatabase, 1000);
+}
 
-            // Priority 2: Standard Standby Light State Routing
-            if (cueState === 'STANDBY') {
-                document.body.classList.add('standby-flash');
-            } else {
-                document.body.classList.remove('standby-flash');
-            }
-        }
+function updateContingencyUI(stateValue) {
+  const overlay = document.getElementById('crew-contingency-overlay');
+  const mainText = document.getElementById('contingency-main-text');
+  const subText = document.getElementById('contingency-sub-text');
 
-        window.onload = initStation;
-        window.addEventListener('hashchange', () => window.location.reload());
-    </script>
+  overlay.className = '';
+
+  if (!stateValue || stateValue === 'NONE' || stateValue === 'OFF') {
+    overlay.style.display = 'none';
+    return;
+  }
+
+  const [type, timing] = stateValue.split(':');
+  overlay.classList.add(`type-${type}`);
+  overlay.style.display = 'flex';
+  mainText.innerText = type.replace('_', ' ');
+
+  if (timing) {
+    subText.style.display = 'inline-block';
+    subText.innerText = timing;
+  } else {
+    subText.style.display = 'none';
+  }
+}
+
+function updateLightUI(cueState, isCalling) {
+  // Handle MD Special Alerts
+  const mdOverlay = document.getElementById('md-alert-overlay');
+  const mdMsg = document.getElementById('md-alert-message');
+
+  if (hash === 'MD' && (cueState === 'MD_LOOP' || cueState === 'MD_TIME')) {
+    mdOverlay.style.display = 'block';
+    mdMsg.innerText = cueState === 'MD_LOOP' ? 'LOOP NEEDED' : 'MORE TIME NEEDED';
+  } else {
+    mdOverlay.style.display = 'none';
+  }
+
+  // Priority 1: Check Master Call Registry
+  if (isCalling === true || isCalling === 'true') {
+    document.body.classList.add('attention-call-active');
+    return;
+  }
+
+  document.body.classList.remove('attention-call-active');
+
+  // Priority 2: Standard Standby Light State Routing
+  if (cueState === 'STANDBY') {
+    document.body.classList.add('standby-flash');
+  } else {
+    document.body.classList.remove('standby-flash');
+  }
+}
+
+window.onload = initStation;
+window.addEventListener('hashchange', () => window.location.reload());
+</script>
 </body>
 </html>
