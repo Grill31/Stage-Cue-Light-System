@@ -1,460 +1,807 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SM Master Console</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        :root {
-            --bg-color: #121212;
-            --box-bg: #1a1a1a;
-            --red-on: #ff2a2a;
-            --red-off: #4d0a0a;
-            --green-on: #2acc2a;
-            --green-off: #0a4d0a;
-            --panel-border: #3a3a3a;
-            --orange-call: #ff9900;
-        }
-        
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: var(--bg-color);
-            color: #fff;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            user-select: none;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SM Master Console</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg-color: #121212;
+  --box-bg: #1a1a1a;
+  --red-on: #ff2a2a;
+  --red-off: #4d0a0a;
+  --green-on: #2acc2a;
+  --green-off: #0a4d0a;
+  --panel-border: #3a3a3a;
+  --orange-call: #ff9900;
+  --purple-md: #8a2be2;
+}
 
-        /* --- UPPER RACK (15% Viewport Height) --- */
-        .top-utility-bar {
-            height: 15vh;
-            min-height: 80px;
-            display: grid;
-            grid-template-columns: 1.2fr 1.6fr 1.2fr;
-            align-items: center;
-            background-color: #181818;
-            border-bottom: 5px ridge var(--panel-border);
-            padding: 0 20px;
-            box-sizing: border-box;
-        }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-color);
+  color: #fff;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
 
-        .time-module {
-            font-family: monospace;
-            font-weight: bold;
-            font-size: calc(1.4vh + 1.1rem);
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-        }
+/* --- ACTIVE CONTINGENCY TOP BANNER --- */
+#sm-contingency-banner {
+  display: none;
+  width: 100%;
+  padding: 8px 20px;
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  justify-content: space-between;
+  align-items: center;
+  box-sizing: border-box;
+  z-index: 500;
+}
+#sm-contingency-banner.type-SHOW_STOP { background-color: #ff1a1a; color: #fff; animation: pulseBanner 1s infinite; }
+#sm-contingency-banner.type-HOLDING { background-color: #ff9900; color: #000; }
+#sm-contingency-banner.type-CAUTION { background-color: #ffd700; color: #000; }
 
-        .stopwatch-container {
-            justify-content: flex-end;
-            gap: 10px;
-        }
+@keyframes pulseBanner {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
 
-        .sw-btn {
-            background-color: #333;
-            color: #fff;
-            border: 2px solid #555;
-            padding: 6px 12px;
-            font-size: 0.8rem;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
+.banner-clear-btn {
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  border: 2px solid #fff;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+}
 
-        .macro-container {
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-        }
-        .macro-btn {
-            color: #fff;
-            border: 3px solid #111;
-            border-radius: 6px;
-            padding: 10px 20px;
-            font-weight: 900;
-            font-size: 0.95rem;
-            letter-spacing: 1px;
-            cursor: pointer;
-            text-transform: uppercase;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.4);
-            transition: all 0.05s ease;
-        }
-        .macro-btn:active { transform: scale(0.96); }
-        
-        .btn-master-go { background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%); }
-        .btn-master-reset { background: linear-gradient(180deg, #444 0%, #222 100%); border-color: #555; }
+/* --- UPPER RACK (15% Viewport Height) --- */
+.top-utility-bar {
+  height: 15vh;
+  min-height: 80px;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: center;
+  background-color: #181818;
+  border-bottom: 5px ridge var(--panel-border);
+  padding: 0 20px;
+  box-sizing: border-box;
+}
 
-        /* --- CUE LIGHT DECK (85% Viewport Height) --- */
-        .console-rack {
-            height: 85vh;
-            display: grid;
-            grid-template-columns: repeat(7, 1fr); 
-            gap: 12px;
-            padding: 15px;
-            background-color: #222;
-            box-sizing: border-box;
-        }
+.time-module {
+  font-family: monospace;
+  font-weight: bold;
+  font-size: calc(1.4vh + 1.1rem);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
 
-        .channel-strip {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--box-bg);
-            padding: 2vh 8px;
-            border: 2px solid #2d2d2d;
-            border-radius: 6px;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-            box-sizing: border-box;
-            transition: background-color 0.2s ease;
-        }
+.stopwatch-container {
+  justify-content: flex-end;
+  gap: 10px;
+}
 
-        /* --- CALL SYSTEM --- */
-        .call-dash-header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 4px;
-            box-sizing: border-box;
-        }
+.sw-btn {
+  background-color: #333;
+  color: #fff;
+  border: 2px solid #555;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
 
-        .action-call-btn {
-            background-color: var(--orange-call);
-            color: #000;
-            border: 2px solid #111;
-            border-radius: 4px;
-            font-weight: 900;
-            font-size: 0.75rem;
-            padding: 4px 8px;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
+.macro-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+}
 
-        .action-cancel-btn {
-            background-color: #000000;
-            color: #444;
-            border: 2px solid #222;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 0.7rem;
-            padding: 4px 6px;
-            cursor: pointer;
-            text-transform: uppercase;
-        }
-        .action-cancel-btn.active-kill {
-            color: #fff;
-            border-color: #ff3333;
-        }
+.macro-btn {
+  color: #fff;
+  border: 3px solid #111;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-weight: 900;
+  font-size: 0.9rem;
+  letter-spacing: 1px;
+  cursor: pointer;
+  text-transform: uppercase;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+  transition: all 0.05s ease;
+}
+.macro-btn:active { transform: scale(0.96); }
 
-        @keyframes callFlashLoop {
-            0%, 100% { background-color: var(--box-bg); }
-            50% { background-color: #5d3a00; }
-        }
-        .channel-strip.flashing-call-active {
-            animation: callFlashLoop 0.5s infinite !important;
-        }
+.btn-master-go { background: linear-gradient(180deg, #2acc2a 0%, #0a4d0a 100%); }
+.btn-master-reset { background: linear-gradient(180deg, #444 0%, #222 100%); border-color: #555; }
+.btn-contingency { background: linear-gradient(180deg, #d9534f 0%, #7a1c1a 100%); border-color: #ff4d4d; }
 
-        /* --- CONTROL BUTTONS --- */
-        .cue-btn {
-            width: 82%;
-            aspect-ratio: 1 / 1; 
-            max-width: 140px;
-            border: 5px solid #111;
-            border-radius: 50%;
-            cursor: pointer;
-            outline: none;
-            box-sizing: border-box;
-            position: relative;
-        }
-        .cue-btn::after {
-            content: attr(data-key);
-            position: absolute;
-            bottom: -22px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 0.8rem;
-            color: #666;
-            font-weight: bold;
-            font-family: monospace;
-        }
+/* --- CUE LIGHT DECK (85% Viewport Height) --- */
+.console-rack {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 12px;
+  padding: 15px;
+  background-color: #222;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 
-        .btn-standby { background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
-        .btn-standby.active { background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%); box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff; }
+.channel-strip {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--box-bg);
+  padding: 2vh 8px;
+  border: 2px solid #2d2d2d;
+  border-radius: 6px;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+  position: relative;
+}
 
-        .btn-go { background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
-        .btn-go.active { background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%); box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff; }
+/* --- CALL SYSTEM --- */
+.call-dash-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+  box-sizing: border-box;
+}
 
-        .label-window {
-            width: 95%;
-            background-color: #f8f9fa;
-            color: #000;
-            font-weight: 900;
-            font-size: calc(1.2vw + 1rem); 
-            padding: 8px 0;
-            text-align: center;
-            text-transform: uppercase;
-            border: 4px solid #000;
-            border-radius: 4px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-            letter-spacing: 1px;
-            box-sizing: border-box;
-        }
-    </style>
+.action-call-btn {
+  background-color: var(--orange-call);
+  color: #000;
+  border: 2px solid #111;
+  border-radius: 4px;
+  font-weight: 900;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.action-cancel-btn {
+  background-color: #000000;
+  color: #444;
+  border: 2px solid #222;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.7rem;
+  padding: 4px 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.action-cancel-btn.active-kill {
+  color: #fff;
+  border-color: #ff3333;
+}
+
+@keyframes callFlashLoop {
+  0%, 100% { background-color: var(--box-bg); }
+  50% { background-color: #5d3a00; }
+}
+.channel-strip.flashing-call-active {
+  animation: callFlashLoop 0.5s infinite !important;
+}
+
+/* --- CONTROL BUTTONS --- */
+.cue-btn {
+  width: 82%;
+  aspect-ratio: 1 / 1;
+  max-width: 135px;
+  border: 5px solid #111;
+  border-radius: 50%;
+  cursor: pointer;
+  outline: none;
+  box-sizing: border-box;
+  position: relative;
+}
+.cue-btn::after {
+  content: attr(data-key);
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: bold;
+  font-family: monospace;
+}
+
+.btn-standby { background: radial-gradient(circle, #5a1010 0%, var(--red-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
+.btn-standby.active { background: radial-gradient(circle, #ff8888 0%, var(--red-on) 100%); box-shadow: 0 0 35px var(--red-on), inset 0 0 10px #fff; }
+
+.btn-go { background: radial-gradient(circle, #105a10 0%, var(--green-off) 100%); box-shadow: inset 0 0 15px rgba(0,0,0,0.9); }
+.btn-go.active { background: radial-gradient(circle, #88ff88 0%, var(--green-on) 100%); box-shadow: 0 0 35px var(--green-on), inset 0 0 10px #fff; }
+
+.label-window {
+  width: 95%;
+  background-color: #f8f9fa;
+  color: #000;
+  font-weight: 900;
+  font-size: calc(1.2vw + 1rem);
+  padding: 8px 0;
+  text-align: center;
+  text-transform: uppercase;
+  border: 4px solid #000;
+  border-radius: 4px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+  letter-spacing: 1px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* MD Interactive Label Styling */
+.label-window.md-interactive {
+  cursor: pointer;
+  border-color: #8a2be2;
+  transition: transform 0.1s ease, background-color 0.2s ease;
+}
+.label-window.md-interactive:hover {
+  background-color: #e9d8fd;
+}
+.label-window.md-interactive::after {
+  content: "▼ MENU";
+  display: block;
+  font-size: 0.65rem;
+  letter-spacing: 1px;
+  color: #553c9a;
+  margin-top: 2px;
+}
+.label-window.md-alert-active {
+  background-color: #8a2be2 !important;
+  color: #fff !important;
+  animation: mdPulse 1s infinite;
+}
+.label-window.md-alert-active::after {
+  color: #fff;
+}
+
+@keyframes mdPulse {
+  0%, 100% { box-shadow: 0 0 10px #8a2be2; }
+  50% { box-shadow: 0 0 25px #d580ff; }
+}
+
+#md-status-badge {
+  display: none;
+  font-size: 0.7rem;
+  font-weight: 900;
+  background: #8a2be2;
+  color: #fff;
+  padding: 3px 6px;
+  border-radius: 3px;
+  text-align: center;
+  width: 90%;
+  text-transform: uppercase;
+}
+
+/* --- MODAL OVERLAYS --- */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(3px);
+}
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal-window {
+  background: #1e1e1e;
+  border: 3px solid #444;
+  border-radius: 10px;
+  padding: 24px;
+  width: 90%;
+  max-width: 480px;
+  box-shadow: 0 15px 40px rgba(0,0,0,0.9);
+  text-align: center;
+}
+
+.modal-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin: 0 0 6px 0;
+  color: #fff;
+}
+
+.modal-subtitle {
+  font-size: 0.85rem;
+  color: #aaa;
+  margin: 0 0 20px 0;
+  text-transform: uppercase;
+}
+
+.modal-btn-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-choice-btn {
+  padding: 16px;
+  font-size: 1.1rem;
+  font-weight: 900;
+  border: 2px solid #111;
+  border-radius: 6px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: transform 0.08s ease;
+}
+.modal-choice-btn:active { transform: scale(0.98); }
+
+.choice-stop { background: #ff2a2a; color: #fff; }
+.choice-hold { background: #ff9900; color: #000; }
+.choice-caution { background: #ffd700; color: #000; }
+.choice-when { background: #2d3748; color: #fff; border-color: #4a5568; }
+.choice-when:hover { background: #4a5568; }
+
+.choice-md { background: #6b46c1; color: #fff; border-color: #9f7aea; }
+.choice-md:hover { background: #805ad5; }
+
+.choice-clear { background: #333; color: #ccc; border-color: #555; font-size: 0.9rem; padding: 12px; }
+.modal-close-btn {
+  margin-top: 16px;
+  background: transparent;
+  color: #888;
+  border: 1px solid #444;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+</style>
 </head>
 <body>
 
-    <div class="top-utility-bar">
-        <div class="time-module" id="wall-clock">00:00:00</div>
-        
-        <div class="macro-container">
-            <button class="macro-btn btn-master-go" onclick="triggerTargetedMasterGo()">Master GO (\)</button>
-            <button class="macro-btn btn-master-reset" onclick="triggerGlobalReset()">Reset All (1)</button>
-        </div>
-        
-        <div class="time-module stopwatch-container">
-            <span id="sw-display">00:00:00:000</span>
-            <button class="sw-btn" id="sw-toggle" onclick="toggleStopwatch()">Start</button>
-            <button class="sw-btn" onclick="resetStopwatch()">Reset</button>
-        </div>
+<!-- ACTIVE CONTINGENCY TOP BANNER -->
+<div id="sm-contingency-banner">
+  <span id="sm-contingency-text">CONTINGENCY ACTIVE</span>
+  <button class="banner-clear-btn" onclick="clearContingency()">Clear Alert</button>
+</div>
+
+<div class="top-utility-bar">
+  <div class="time-module" id="wall-clock">00:00:00</div>
+
+  <div class="macro-container">
+    <button class="macro-btn btn-contingency" onclick="openContingencyModal()">Contingency ▼</button>
+    <button class="macro-btn btn-master-go" onclick="triggerTargetedMasterGo()">Master GO (\)</button>
+    <button class="macro-btn btn-master-reset" onclick="triggerGlobalReset()">Reset All (1)</button>
+  </div>
+
+  <div class="time-module stopwatch-container">
+    <span id="sw-display">00:00:00:000</span>
+    <button class="sw-btn" id="sw-toggle" onclick="toggleStopwatch()">Start</button>
+    <button class="sw-btn" onclick="resetStopwatch()">Reset</button>
+  </div>
+</div>
+
+<div class="console-rack" id="master-rack"></div>
+
+<!-- CONTINGENCY MODAL -->
+<div class="modal-backdrop" id="contingency-modal">
+  <div class="modal-window">
+    <!-- STEP 1: TYPE -->
+    <div id="contingency-step-1">
+      <h2 class="modal-title">Select Contingency</h2>
+      <p class="modal-subtitle">Broadcasts immediately to all crew stations</p>
+      <div class="modal-btn-grid">
+        <button class="modal-choice-btn choice-stop" onclick="selectContingencyType('SHOW_STOP')">SHOW STOP</button>
+        <button class="modal-choice-btn choice-hold" onclick="selectContingencyType('HOLDING')">HOLDING</button>
+        <button class="modal-choice-btn choice-caution" onclick="selectContingencyType('CAUTION')">CAUTION</button>
+        <button class="modal-choice-btn choice-clear" onclick="clearContingency()">Clear Active Contingency</button>
+      </div>
     </div>
 
-    <div class="console-rack" id="master-rack"></div>
+    <!-- STEP 2: WHEN (For SHOW STOP & HOLDING) -->
+    <div id="contingency-step-2" style="display:none;">
+      <h2 class="modal-title" id="when-modal-title">WHEN?</h2>
+      <p class="modal-subtitle">Select execution timing</p>
+      <div class="modal-btn-grid">
+        <button class="modal-choice-btn choice-when" onclick="confirmContingencyWithTiming('IMMEDIATELY')">IMMEDIATELY</button>
+        <button class="modal-choice-btn choice-when" onclick="confirmContingencyWithTiming('END OF SONG')">END OF SONG</button>
+        <button class="modal-choice-btn choice-when" onclick="confirmContingencyWithTiming('END OF ACT')">END OF ACT</button>
+        <button class="modal-choice-btn choice-when" onclick="confirmContingencyWithTiming('START OF ACT')">START OF ACT</button>
+        <button class="modal-choice-btn choice-when" onclick="confirmContingencyWithTiming('START OF SONG')">START OF SONG</button>
+      </div>
+    </div>
 
-    <script>
-        const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
-        const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I"; 
-        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <button class="modal-close-btn" onclick="closeContingencyModal()">Close Window</button>
+  </div>
+</div>
 
-        const stationList = ["LX", "SQ", "SL", "SR", "AUTO", "RAIL", "MD"];
-        
-        const hotkeyMaps = {
-            'q': { station: 'LX', action: 'STANDBY' }, 'w': { station: 'SQ', action: 'STANDBY' },
-            'e': { station: 'SL', action: 'STANDBY' }, 'r': { station: 'SR', action: 'STANDBY' },
-            't': { station: 'AUTO', action: 'STANDBY' }, 'y': { station: 'RAIL', action: 'STANDBY' }, 'u': { station: 'MD', action: 'STANDBY' },
-            'a': { station: 'LX', action: 'GO' }, 's': { station: 'SQ', action: 'GO' },
-            'd': { station: 'SL', action: 'GO' }, 'f': { station: 'SR', action: 'GO' },
-            'g': { station: 'AUTO', action: 'GO' }, 'h': { station: 'RAIL', action: 'GO' }, 'j': { station: 'MD', action: 'GO' }
-        };
+<!-- MD MENU MODAL -->
+<div class="modal-backdrop" id="md-modal">
+  <div class="modal-window">
+    <h2 class="modal-title">MD Communication</h2>
+    <p class="modal-subtitle">Send musical direction alert</p>
+    <div class="modal-btn-grid">
+      <button class="modal-choice-btn choice-md" onclick="triggerMDAction('MD_LOOP')">LOOP NEEDED</button>
+      <button class="modal-choice-btn choice-md" onclick="triggerMDAction('MD_TIME')">MORE TIME NEEDED</button>
+      <button class="modal-choice-btn choice-clear" onclick="clearMDAction()">Clear MD Request</button>
+    </div>
+    <button class="modal-close-btn" onclick="closeMDModal()">Close Menu</button>
+  </div>
+</div>
 
-        let localStateRegistry = {};
-        let activeCallTimers = {};
+<script>
+const SUPABASE_URL = "https://lehixazrwwjldgpxylig.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxlaGl4YXpyd3dqbGRncHh5bGlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyODc4NDAsImV4cCI6MjA5Njg2Mzg0MH0.y66qZeA-z3lULQHGTCI7_aY3BEA9Qj6i56xhyX0uH8I";
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // --- WALL CLOCK ---
-        function updateWallClock() {
-            const now = new Date();
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('wall-clock').innerText = `${hours}:${minutes}:${seconds}`;
+const stationList = ["LX", "SQ", "SL", "SR", "AUTO", "RAIL", "MD"];
+
+const hotkeyMaps = {
+  'q': { station: 'LX', action: 'STANDBY' }, 'w': { station: 'SQ', action: 'STANDBY' },
+  'e': { station: 'SL', action: 'STANDBY' }, 'r': { station: 'SR', action: 'STANDBY' },
+  't': { station: 'AUTO', action: 'STANDBY' }, 'y': { station: 'RAIL', action: 'STANDBY' }, 'u': { station: 'MD', action: 'STANDBY' },
+  'a': { station: 'LX', action: 'GO' }, 's': { station: 'SQ', action: 'GO' },
+  'd': { station: 'SL', action: 'GO' }, 'f': { station: 'SR', action: 'GO' },
+  'g': { station: 'AUTO', action: 'GO' }, 'h': { station: 'RAIL', action: 'GO' }, 'j': { station: 'MD', action: 'GO' }
+};
+
+let localStateRegistry = {};
+let activeCallTimers = {};
+let pendingContingencyType = null;
+
+// --- WALL CLOCK ---
+function updateWallClock() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('wall-clock').innerText = `${hours}:${minutes}:${seconds}`;
+}
+setInterval(updateWallClock, 1000);
+updateWallClock();
+
+// --- STOPWATCH ---
+let swInterval = null;
+let swElapsedTime = 0;
+
+function toggleStopwatch() {
+  const btn = document.getElementById('sw-toggle');
+  if (swInterval) {
+    clearInterval(swInterval);
+    swInterval = null;
+    btn.innerText = "Start";
+  } else {
+    const startTime = Date.now() - swElapsedTime;
+    swInterval = setInterval(() => {
+      swElapsedTime = Date.now() - startTime;
+      renderStopwatchUI();
+    }, 10);
+    btn.innerText = "Stop";
+  }
+}
+
+function resetStopwatch() {
+  clearInterval(swInterval);
+  swInterval = null;
+  swElapsedTime = 0;
+  document.getElementById('sw-toggle').innerText = "Start";
+  renderStopwatchUI();
+}
+
+function renderStopwatchUI() {
+  let tempTime = swElapsedTime;
+  const hours = Math.floor(tempTime / 3600000);
+  tempTime %= 3600000;
+  const minutes = Math.floor(tempTime / 60000);
+  tempTime %= 60000;
+  const seconds = Math.floor(tempTime / 1000);
+  const milliseconds = tempTime % 1000;
+  document.getElementById('sw-display').innerText =
+    `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
+}
+
+// --- DATABASE OPERATIONS ---
+async function syncDataFromDatabase() {
+  let { data: currentCues } = await supabaseClient.from('cues').select('*');
+  if (currentCues) {
+    currentCues.forEach(row => {
+      const st = String(row.station).toUpperCase();
+      const val = String(row.state).toUpperCase();
+      if (st === 'SYSTEM') {
+        renderContingencyBanner(val);
+      } else {
+        localStateRegistry[st] = val;
+        updateButtonUI(st, val);
+        updateCallUI(st, row.is_calling);
+        if (st === 'MD') updateMDUI(val);
+      }
+    });
+  }
+}
+
+async function buildConsole() {
+  const rack = document.getElementById('master-rack');
+  rack.innerHTML = '';
+
+  const keyIndicators = {
+    'LX': {std: 'Q', go: 'A'}, 'SQ': {std: 'W', go: 'S'}, 'SL': {std: 'E', go: 'D'},
+    'SR': {std: 'R', go: 'F'}, 'AUTO': {std: 'T', go: 'G'}, 'RAIL': {std: 'Y', go: 'H'}, 'MD': {std: 'U', go: 'J'}
+  };
+
+  stationList.forEach(st => {
+    localStateRegistry[st] = 'OFF';
+    const strip = document.createElement('div');
+    strip.className = 'channel-strip';
+    strip.id = `strip-${st}`;
+
+    const isMD = (st === 'MD');
+    const labelHtml = isMD
+      ? `<div class="label-window md-interactive" id="label-MD" onclick="openMDModal()">${st}</div>
+         <div id="md-status-badge"></div>`
+      : `<div class="label-window">${st}</div>`;
+
+    strip.innerHTML = `
+      <div class="call-dash-header">
+        <button class="action-call-btn" onclick="fireCallSequence('${st}')">Call</button>
+        <button class="action-cancel-btn" id="cnc-${st}" onclick="killCallSequence('${st}')">Cancel</button>
+      </div>
+      <button class="cue-btn btn-standby" id="std-${st}" data-key="${keyIndicators[st].std}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
+      ${labelHtml}
+      <button class="cue-btn btn-go" id="go-${st}" data-key="${keyIndicators[st].go}" onclick="toggleSignal('${st}', 'GO')"></button>
+    `;
+    rack.appendChild(strip);
+  });
+
+  await syncDataFromDatabase();
+
+  supabaseClient.channel('sm-sync')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' },
+      payload => {
+        if (payload.new) {
+          const st = String(payload.new.station).toUpperCase();
+          const val = String(payload.new.state).toUpperCase();
+          if (st === 'SYSTEM') {
+            renderContingencyBanner(val);
+          } else {
+            localStateRegistry[st] = val;
+            updateButtonUI(st, val);
+            updateCallUI(st, payload.new.is_calling);
+            if (st === 'MD') updateMDUI(val);
+          }
         }
-        setInterval(updateWallClock, 1000);
-        updateWallClock();
+      }
+    ).subscribe();
+}
 
-        // --- STOPWATCH ---
-        let swInterval = null;
-        let swElapsedTime = 0;
+// --- CONTINGENCY SYSTEM ---
+function openContingencyModal() {
+  pendingContingencyType = null;
+  document.getElementById('contingency-step-1').style.display = 'block';
+  document.getElementById('contingency-step-2').style.display = 'none';
+  document.getElementById('contingency-modal').classList.add('open');
+}
 
-        function toggleStopwatch() {
-            const btn = document.getElementById('sw-toggle');
-            if (swInterval) {
-                clearInterval(swInterval);
-                swInterval = null;
-                btn.innerText = "Start";
-            } else {
-                const startTime = Date.now() - swElapsedTime;
-                swInterval = setInterval(() => {
-                    swElapsedTime = Date.now() - startTime;
-                    renderStopwatchUI();
-                }, 10);
-                btn.innerText = "Stop";
-            }
-        }
+function closeContingencyModal() {
+  document.getElementById('contingency-modal').classList.remove('open');
+}
 
-        function resetStopwatch() {
-            clearInterval(swInterval);
-            swInterval = null;
-            swElapsedTime = 0;
-            document.getElementById('sw-toggle').innerText = "Start";
-            renderStopwatchUI();
-        }
+function selectContingencyType(type) {
+  if (type === 'CAUTION') {
+    broadcastContingency('CAUTION');
+    closeContingencyModal();
+    return;
+  }
+  // SHOW_STOP or HOLDING -> Open WHEN options
+  pendingContingencyType = type;
+  document.getElementById('when-modal-title').innerText = `${type.replace('_', ' ')} — WHEN?`;
+  document.getElementById('contingency-step-1').style.display = 'none';
+  document.getElementById('contingency-step-2').style.display = 'block';
+}
 
-        function renderStopwatchUI() {
-            let tempTime = swElapsedTime;
-            const hours = Math.floor(tempTime / 3600000);
-            tempTime %= 3600000;
-            const minutes = Math.floor(tempTime / 60000);
-            tempTime %= 60000;
-            const seconds = Math.floor(tempTime / 1000);
-            const milliseconds = tempTime % 1000;
-            document.getElementById('sw-display').innerText = 
-                `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}:${String(milliseconds).padStart(3, '0')}`;
-        }
+function confirmContingencyWithTiming(whenOption) {
+  if (!pendingContingencyType) return;
+  const payloadString = `${pendingContingencyType}:${whenOption}`;
+  broadcastContingency(payloadString);
+  closeContingencyModal();
+}
 
-        // --- DATABASE OPERATIONS ---
-        async function syncDataFromDatabase() {
-            let { data: currentCues } = await supabaseClient.from('cues').select('*');
-            if (currentCues) {
-                currentCues.forEach(row => {
-                    localStateRegistry[row.station] = String(row.state).toUpperCase();
-                    updateButtonUI(row.station, localStateRegistry[row.station]);
-                    updateCallUI(row.station, row.is_calling);
-                });
-            }
-        }
+async function broadcastContingency(stateValue) {
+  renderContingencyBanner(stateValue);
+  await supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: stateValue, is_calling: false }, { onConflict: 'station' });
+}
 
-        async function buildConsole() {
-            const rack = document.getElementById('master-rack');
-            rack.innerHTML = '';
+async function clearContingency() {
+  renderContingencyBanner('NONE');
+  closeContingencyModal();
+  await supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: 'NONE', is_calling: false }, { onConflict: 'station' });
+}
 
-            const keyIndicators = {
-                'LX': {std: 'Q', go: 'A'}, 'SQ': {std: 'W', go: 'S'}, 'SL': {std: 'E', go: 'D'},
-                'SR': {std: 'R', go: 'F'}, 'AUTO': {std: 'T', go: 'G'}, 'RAIL': {std: 'Y', go: 'H'}, 'MD': {std: 'U', go: 'J'}
-            };
+function renderContingencyBanner(stateValue) {
+  const banner = document.getElementById('sm-contingency-banner');
+  const textEl = document.getElementById('sm-contingency-text');
+  banner.className = '';
 
-            stationList.forEach(st => {
-                localStateRegistry[st] = 'OFF';
-                const strip = document.createElement('div');
-                strip.className = 'channel-strip';
-                strip.id = `strip-${st}`;
-                strip.innerHTML = `
-                    <div class="call-dash-header">
-                        <button class="action-call-btn" onclick="fireCallSequence('${st}')">Call</button>
-                        <button class="action-cancel-btn" id="cnc-${st}" onclick="killCallSequence('${st}')">Cancel</button>
-                    </div>
-                    <button class="cue-btn btn-standby" id="std-${st}" data-key="${keyIndicators[st].std}" onclick="toggleSignal('${st}', 'STANDBY')"></button>
-                    <div class="label-window">${st}</div>
-                    <button class="cue-btn btn-go" id="go-${st}" data-key="${keyIndicators[st].go}" onclick="toggleSignal('${st}', 'GO')"></button>
-                `;
-                rack.appendChild(strip);
-            });
+  if (!stateValue || stateValue === 'NONE' || stateValue === 'OFF') {
+    banner.style.display = 'none';
+    return;
+  }
 
-            await syncDataFromDatabase();
+  const [type, timing] = stateValue.split(':');
+  banner.classList.add(`type-${type}`);
+  banner.style.display = 'flex';
+  const cleanType = type.replace('_', ' ');
+  textEl.innerText = timing ? `⚠️ ${cleanType} — ${timing}` : `⚠️ ${cleanType}`;
+}
 
-            supabaseClient.channel('sm-sync')
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'cues' }, 
-                payload => { 
-                    if(payload.new) {
-                        localStateRegistry[payload.new.station] = String(payload.new.state).toUpperCase();
-                        updateButtonUI(payload.new.station, localStateRegistry[payload.new.station]); 
-                        updateCallUI(payload.new.station, payload.new.is_calling);
-                    }
-                }
-            ).subscribe();
-        }
+// --- MD MENU SYSTEM ---
+function openMDModal() {
+  document.getElementById('md-modal').classList.add('open');
+}
 
-        // --- CALL SYSTEM DATABASE TRIGGERS ---
-        async function fireCallSequence(station) {
-            if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
+function closeMDModal() {
+  document.getElementById('md-modal').classList.remove('open');
+}
 
-            // 1. Force the database update first
-            await supabaseClient.from('cues').update({ is_calling: true }).eq('station', station);
-            
-            // 2. Light up the console interface locally
-            updateCallUI(station, true);
+async function triggerMDAction(mdState) {
+  localStateRegistry['MD'] = mdState;
+  updateButtonUI('MD', mdState);
+  updateMDUI(mdState);
+  closeMDModal();
+  await supabaseClient.from('cues').update({ state: mdState }).eq('station', 'MD');
+}
 
-            // 3. Set the 8-second safety drop window
-            activeCallTimers[station] = setTimeout(() => {
-                killCallSequence(station);
-            }, 8000);
-        }
+async function clearMDAction() {
+  localStateRegistry['MD'] = 'OFF';
+  updateButtonUI('MD', 'OFF');
+  updateMDUI('OFF');
+  closeMDModal();
+  await supabaseClient.from('cues').update({ state: 'OFF' }).eq('station', 'MD');
+}
 
-        async function killCallSequence(station) {
-            if (activeCallTimers[station]) {
-                clearTimeout(activeCallTimers[station]);
-                delete activeCallTimers[station];
-            }
-            
-            // 1. Clear out the database flag first
-            await supabaseClient.from('cues').update({ is_calling: false }).eq('station', station);
-            
-            // 2. Drop the local console UI styles back to dark
-            updateCallUI(station, false);
-        }
+function updateMDUI(state) {
+  const label = document.getElementById('label-MD');
+  const badge = document.getElementById('md-status-badge');
+  if (!label || !badge) return;
 
-        function updateCallUI(station, isCalling) {
-            const strip = document.getElementById(`strip-${station}`);
-            const cancelBtn = document.getElementById(`cnc-${station}`);
-            if (!strip || !cancelBtn) return;
+  if (state === 'MD_LOOP') {
+    label.classList.add('md-alert-active');
+    badge.style.display = 'block';
+    badge.innerText = 'LOOP NEEDED';
+  } else if (state === 'MD_TIME') {
+    label.classList.add('md-alert-active');
+    badge.style.display = 'block';
+    badge.innerText = 'MORE TIME NEEDED';
+  } else {
+    label.classList.remove('md-alert-active');
+    badge.style.display = 'none';
+  }
+}
 
-            if (isCalling) {
-                strip.classList.add('flashing-call-active');
-                cancelBtn.classList.add('active-kill');
-            } else {
-                strip.classList.remove('flashing-call-active');
-                cancelBtn.classList.remove('active-kill');
-            }
-        }
+// --- CALL SYSTEM DATABASE TRIGGERS ---
+async function fireCallSequence(station) {
+  if (activeCallTimers[station]) clearTimeout(activeCallTimers[station]);
+  await supabaseClient.from('cues').update({ is_calling: true }).eq('station', station);
+  updateCallUI(station, true);
 
-        // --- CUE SIGNAL CONTROL SWITCHES ---
-        async function toggleSignal(station, targetState) {
-            const current = localStateRegistry[station] || 'OFF';
-            const newState = (current === targetState) ? 'OFF' : targetState;
-            
-            localStateRegistry[station] = newState;
-            updateButtonUI(station, newState);
-            
-            await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
-        }
+  activeCallTimers[station] = setTimeout(() => {
+    killCallSequence(station);
+  }, 8000);
+}
 
-        async function triggerTargetedMasterGo() {
-            const updates = [];
-            stationList.forEach(st => {
-                if (localStateRegistry[st] === 'STANDBY') {
-                    localStateRegistry[st] = 'GO';
-                    updateButtonUI(st, 'GO');
-                    updates.push(supabaseClient.from('cues').update({ state: 'GO' }).eq('station', st));
-                }
-            });
-            if (updates.length > 0) await Promise.all(updates);
-        }
+async function killCallSequence(station) {
+  if (activeCallTimers[station]) {
+    clearTimeout(activeCallTimers[station]);
+    delete activeCallTimers[station];
+  }
+  await supabaseClient.from('cues').update({ is_calling: false }).eq('station', station);
+  updateCallUI(station, false);
+}
 
-        async function triggerGlobalReset() {
-            const updates = [];
-            stationList.forEach(st => {
-                localStateRegistry[st] = 'OFF';
-                updateButtonUI(st, 'OFF');
-                updateCallUI(st, false);
-                updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
-            });
-            await Promise.all(updates);
-        }
+function updateCallUI(station, isCalling) {
+  const strip = document.getElementById(`strip-${station}`);
+  const cancelBtn = document.getElementById(`cnc-${station}`);
+  if (!strip || !cancelBtn) return;
 
-        function updateButtonUI(station, state) {
-            const stdBtn = document.getElementById(`std-${station}`);
-            const goBtn = document.getElementById(`go-${station}`);
-            if (!stdBtn || !goBtn) return;
+  if (isCalling) {
+    strip.classList.add('flashing-call-active');
+    cancelBtn.classList.add('active-kill');
+  } else {
+    strip.classList.remove('flashing-call-active');
+    cancelBtn.classList.remove('active-kill');
+  }
+}
 
-            stdBtn.classList.remove('active');
-            goBtn.classList.remove('active');
+// --- CUE SIGNAL CONTROL SWITCHES ---
+async function toggleSignal(station, targetState) {
+  const current = localStateRegistry[station] || 'OFF';
+  const newState = (current === targetState) ? 'OFF' : targetState;
 
-            if (state === 'STANDBY') stdBtn.classList.add('active');
-            if (state === 'GO') goBtn.classList.add('active');
-        }
+  localStateRegistry[station] = newState;
+  updateButtonUI(station, newState);
+  if (station === 'MD') updateMDUI(newState);
 
-        // --- KEYBOARD CAPTURE INTERCEPT ENGINE ---
-        window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            if (key === '\\') { e.preventDefault(); triggerTargetedMasterGo(); return; }
-            if (key === '1') { e.preventDefault(); triggerGlobalReset(); return; }
+  await supabaseClient.from('cues').update({ state: newState }).eq('station', station);
+}
 
-            if (hotkeyMaps[key]) {
-                e.preventDefault();
-                const target = hotkeyMaps[key];
-                toggleSignal(target.station, target.action);
-            }
-        });
+async function triggerTargetedMasterGo() {
+  const updates = [];
+  stationList.forEach(st => {
+    if (localStateRegistry[st] === 'STANDBY') {
+      localStateRegistry[st] = 'GO';
+      updateButtonUI(st, 'GO');
+      updates.push(supabaseClient.from('cues').update({ state: 'GO' }).eq('station', st));
+    }
+  });
+  if (updates.length > 0) await Promise.all(updates);
+}
 
-        window.onload = buildConsole;
-    </script>
+async function triggerGlobalReset() {
+  const updates = [];
+  stationList.forEach(st => {
+    localStateRegistry[st] = 'OFF';
+    updateButtonUI(st, 'OFF');
+    updateCallUI(st, false);
+    if (st === 'MD') updateMDUI('OFF');
+    updates.push(supabaseClient.from('cues').update({ state: 'OFF', is_calling: false }).eq('station', st));
+  });
+  renderContingencyBanner('NONE');
+  updates.push(supabaseClient.from('cues').upsert({ station: 'SYSTEM', state: 'NONE', is_calling: false }, { onConflict: 'station' }));
+  await Promise.all(updates);
+}
+
+function updateButtonUI(station, state) {
+  const stdBtn = document.getElementById(`std-${station}`);
+  const goBtn = document.getElementById(`go-${station}`);
+  if (!stdBtn || !goBtn) return;
+
+  stdBtn.classList.remove('active');
+  goBtn.classList.remove('active');
+
+  if (state === 'STANDBY') stdBtn.classList.add('active');
+  if (state === 'GO') goBtn.classList.add('active');
+}
+
+// --- KEYBOARD CAPTURE INTERCEPT ENGINE ---
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeContingencyModal();
+    closeMDModal();
+    return;
+  }
+  const key = e.key.toLowerCase();
+  if (key === '\\') { e.preventDefault(); triggerTargetedMasterGo(); return; }
+  if (key === '1') { e.preventDefault(); triggerGlobalReset(); return; }
+
+  if (hotkeyMaps[key]) {
+    e.preventDefault();
+    const target = hotkeyMaps[key];
+    toggleSignal(target.station, target.action);
+  }
+});
+
+window.onload = buildConsole;
+</script>
 </body>
 </html>
